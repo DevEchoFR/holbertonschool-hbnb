@@ -112,3 +112,10 @@ python tests/test_reviews.py
 - Only **reviews** support the `DELETE` method.
 - Place responses include embedded **owner** info and **amenities** list.
 - All data is stored in memory – it resets every time the server restarts.
+
+---
+
+# ✍️ Author
+
+Holberton School — HBnB Project
+Team: 👥 - [David Roset](https://github.com/DevEchoFR) - [Tom Marchal](https://github.com/TomMrcl)
