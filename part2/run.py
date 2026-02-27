@@ -17,9 +17,8 @@ def create_app():
         app,
         version="1.0",
         title="HBnB API",
-        description="Holberton BnB REST API – Part 2",
-        prefix="/api/v1",
-        doc="/api/v1/doc",
+        description="HBnB Application API",
+        doc="/",
     )
 
     # Register each namespace (group of related endpoints)
