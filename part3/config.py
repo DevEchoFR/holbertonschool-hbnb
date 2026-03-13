@@ -1,10 +1,12 @@
 """App configuration settings."""
+import os
 
 
 class Config:
     """Default configuration."""
     DEBUG = False
     TESTING = False
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
 
 
 class DevelopmentConfig(Config):

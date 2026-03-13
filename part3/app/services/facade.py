@@ -25,6 +25,7 @@ class HBnBFacade:
             last_name=data["last_name"],
             email=data["email"],
             password=data["password"],
+            is_admin=data.get("is_admin", False),
         )
         # Hash the password before storing it
         user.hash_password(data["password"])
@@ -33,6 +34,14 @@ class HBnBFacade:
 
     def get_user(self, user_id):
         return self.repo.get("User", user_id)
+
+    def get_user_by_email(self, email):
+        """Retrieve a user by their email address."""
+        users = self.repo.get_all("User")
+        for user in users:
+            if user.email == email:
+                return user
+        return None
 
     def list_users(self):
         return self.repo.get_all("User")

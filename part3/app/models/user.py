@@ -6,13 +6,14 @@ from app.models.base_model import BaseModel
 class User(BaseModel):
     """Represents a person who signed up on HBnB."""
 
-    def __init__(self, first_name, last_name, email, password):
+    def __init__(self, first_name, last_name, email, password, is_admin=False):
         super().__init__()
         self._validate(first_name, last_name, email, password)
         self.first_name = first_name
         self.last_name = last_name
         self.email = email
         self.password = None  # Will store the hashed password
+        self.is_admin = is_admin  # Flag to indicate if user is an admin
         self.place_ids = []   # list of place ids owned by this user
         self.review_ids = []  # list of review ids written by this user
 

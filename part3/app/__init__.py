@@ -2,14 +2,19 @@
 from flask import Flask
 from flask_restx import Api
 from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager
 
 from app.api.v1.users import ns as users_ns
 from app.api.v1.amenities import ns as amenities_ns
 from app.api.v1.places import ns as places_ns
 from app.api.v1.reviews import ns as reviews_ns
+from app.api.v1.auth import ns as auth_ns
 
 # Instantiate Bcrypt for password hashing
 bcrypt = Bcrypt()
+
+# Instantiate JWTManager for JWT authentication
+jwt = JWTManager()
 
 
 def create_app(config_class=None):
@@ -34,6 +39,9 @@ def create_app(config_class=None):
     # Initialize Bcrypt with the Flask app
     bcrypt.init_app(app)
     
+    # Initialize JWTManager with the Flask app
+    jwt.init_app(app)
+    
     # Set up the API with Swagger documentation
     api = Api(
         app,
@@ -44,6 +52,7 @@ def create_app(config_class=None):
     )
 
     # Register each namespace (group of related endpoints)
+    api.add_namespace(auth_ns,      path="/api/v1/auth")
     api.add_namespace(users_ns,     path="/api/v1/users")
     api.add_namespace(amenities_ns, path="/api/v1/amenities")
     api.add_namespace(places_ns,    path="/api/v1/places")
