@@ -1,52 +1,62 @@
-"""In-memory repository – our simple storage system."""
+"""SQLAlchemy repository – persistence layer backed by a relational DB."""
+from app import db
+from app.models.user import User
+from app.models.amenity import Amenity
+from app.models.place import Place
+from app.models.review import Review
 
 
-class InMemoryRepository:
-    """Keeps all objects in Python dictionaries (no database needed)."""
+class SQLAlchemyRepository:
+    """Generic repository over SQLAlchemy models."""
 
-    def __init__(self):
-        # Main storage: { "User": { "uuid1": <User obj>, ... }, ... }
-        self._storage = {}
+    MODEL_MAP = {
+        "User": User,
+        "Amenity": Amenity,
+        "Place": Place,
+        "Review": Review,
+    }
 
-    # --- private helper ---------------------------------------------------
-
-    def _bucket(self, model_name):
-        """Get (or create) the dict for a model type."""
-        if model_name not in self._storage:
-            self._storage[model_name] = {}
-        return self._storage[model_name]
-
-    # --- public methods ---------------------------------------------------
+    def _model(self, model_name):
+        model = self.MODEL_MAP.get(model_name)
+        if model is None:
+            raise ValueError(f"Unknown model: {model_name}")
+        return model
 
     def add(self, obj):
-        """Save a new object."""
-        bucket = self._bucket(type(obj).__name__)
-        bucket[obj.id] = obj
+        db.session.add(obj)
+        db.session.commit()
+        return obj
 
     def get(self, model_name, obj_id):
-        """Return one object by id, or None if not found."""
-        return self._bucket(model_name).get(obj_id)
+        model = self._model(model_name)
+        return db.session.get(model, obj_id)
 
     def get_all(self, model_name):
-        """Return a list of all objects for a model."""
-        return list(self._bucket(model_name).values())
+        model = self._model(model_name)
+        return db.session.query(model).all()
 
     def update(self, model_name, obj_id, data):
-        """Update an object's fields. Returns the object or None."""
         obj = self.get(model_name, obj_id)
         if obj is None:
             return None
         obj.update(data)
+        db.session.commit()
         return obj
 
     def delete(self, model_name, obj_id):
-        """Delete an object. Returns True if deleted, False if not found."""
-        bucket = self._bucket(model_name)
-        if obj_id not in bucket:
+        obj = self.get(model_name, obj_id)
+        if obj is None:
             return False
-        del bucket[obj_id]
+        db.session.delete(obj)
+        db.session.commit()
         return True
 
     def exists(self, model_name, obj_id):
-        """Check if an object exists (True/False)."""
-        return obj_id in self._bucket(model_name)
+        return self.get(model_name, obj_id) is not None
+
+    def get_by_field(self, model_name, field_name, value):
+        model = self._model(model_name)
+        field = getattr(model, field_name, None)
+        if field is None:
+            raise ValueError(f"Unknown field {field_name} on {model_name}")
+        return db.session.query(model).filter(field == value).first()

@@ -1,12 +1,22 @@
 """Review model."""
 from app.models.base_model import BaseModel
+from app import db
 
 
 class Review(BaseModel):
     """A review is feedback a user leaves for a place they visited."""
 
+    __tablename__ = "reviews"
+
+    text = db.Column(db.Text, nullable=False)
+    rating = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.String(60), db.ForeignKey("users.id"), nullable=False)
+    place_id = db.Column(db.String(60), db.ForeignKey("places.id"), nullable=False)
+
+    author = db.relationship("User", back_populates="reviews")
+    place = db.relationship("Place", back_populates="reviews")
+
     def __init__(self, text, rating, user_id, place_id):
-        super().__init__()
         self._validate(text, rating)
         self.text = text
         self.rating = int(rating)
@@ -37,3 +47,13 @@ class Review(BaseModel):
                 raise ValueError("rating must be between 1 and 5")
             data["rating"] = r
         super().update(data)
+
+    def to_dict(self):
+        d = super().to_dict()
+        d.update({
+            "text": self.text,
+            "rating": self.rating,
+            "user_id": self.user_id,
+            "place_id": self.place_id,
+        })
+        return d

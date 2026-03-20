@@ -1,234 +1,229 @@
-# HBnB - Part 2: RESTful API with Flask
+# HBnB - Part 3: Enhanced Backend (Auth + Database)
 
-## Description
+## Project Goal
 
-This is Part 2 of the HBnB project. We build a REST API using Flask and Flask-RESTx.
-The project follows a layered architecture:
+Part 3 turns the HBnB API into a secure, persistent backend by adding:
 
-- **Presentation Layer** – Flask-RESTx namespaces (API endpoints + Swagger UI)
-- **Business Logic Layer** – Models (`User`, `Place`, `Review`, `Amenity`) + `HBnBFacade`
-- **Persistence Layer** – `InMemoryRepository` (dict-based, no database required)
+- JWT authentication with Flask-JWT-Extended
+- Role-based authorization using the user `is_admin` flag
+- SQLAlchemy ORM with SQLite for development/testing
+- MySQL-ready production configuration
+- Database-backed CRUD for users, amenities, places, and reviews
 
-The **Facade** is the single entry point between the API and storage.  
-The API **never** touches the repository directly.
+## Stack
 
----
+- Flask
+- Flask-RESTx
+- Flask-Bcrypt
+- Flask-JWT-Extended
+- Flask-SQLAlchemy
+- SQLite (development + tests)
+- MySQL (production via PyMySQL)
 
 ## Project Structure
 
-```
-part2/
+```text
+part3/
 ├── app/
 │   ├── __init__.py
 │   ├── api/
-│   │   ├── __init__.py
 │   │   └── v1/
-│   │       ├── __init__.py
-│   │       ├── users.py        # User endpoints
-│   │       ├── places.py       # Place endpoints + sub-resource /places/<id>/reviews
-│   │       ├── reviews.py      # Review endpoints
-│   │       └── amenities.py    # Amenity endpoints
+│   │       ├── admin.py
+│   │       ├── amenities.py
+│   │       ├── auth.py
+│   │       ├── places.py
+│   │       ├── reviews.py
+│   │       └── users.py
 │   ├── models/
-│   │   ├── __init__.py
-│   │   ├── base_model.py       # Shared UUID id + UTC timestamps
-│   │   ├── user.py
+│   │   ├── amenity.py
+│   │   ├── base_model.py
 │   │   ├── place.py
 │   │   ├── review.py
-│   │   └── amenity.py
-│   ├── services/
-│   │   ├── __init__.py
-│   │   └── facade.py           # HBnBFacade – the only path to storage
-│   └── persistence/
-│       ├── __init__.py
-│       └── repository.py       # InMemoryRepository
+│   │   └── user.py
+│   ├── persistence/
+│   │   └── repository.py
+│   └── services/
+│       └── facade.py
 ├── tests/
-│   ├── __init__.py
-│   ├── helpers.py              # Shared test client and utilities
-│   ├── test_users.py           # User endpoint tests
-│   ├── test_amenities.py       # Amenity endpoint tests
-│   ├── test_places.py          # Place endpoint tests
-│   ├── test_reviews.py         # Review endpoint tests
-│   └── run_all.py              # Run all test files at once
-├── run.py
+│   ├── helpers.py
+│   ├── run_all.py
+│   ├── test_amenities.py
+│   ├── test_places.py
+│   ├── test_reviews.py
+│   └── test_users.py
+├── DB_SCHEMA.md
 ├── config.py
+├── README.md
 ├── requirements.txt
-└── README.md
+└── run.py
 ```
-
----
-
-## How to Run
-
-```bash
-cd part2
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start the server
-python run.py
-```
-
-- API base URL: `http://localhost:5000/api/v1/`
-- Swagger UI: `http://localhost:5000/api/v1/doc`
-
----
-
-## Endpoints
-
-### Users
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| `POST` | `/api/v1/users/` | Create a user |
-| `GET` | `/api/v1/users/` | List all users |
-| `GET` | `/api/v1/users/<id>` | Get a user |
-| `PUT` | `/api/v1/users/<id>` | Update a user |
-
-### Amenities
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| `POST` | `/api/v1/amenities/` | Create an amenity |
-| `GET` | `/api/v1/amenities/` | List all amenities |
-| `GET` | `/api/v1/amenities/<id>` | Get an amenity |
-| `PUT` | `/api/v1/amenities/<id>` | Update an amenity |
-
-### Places
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| `POST` | `/api/v1/places/` | Create a place |
-| `GET` | `/api/v1/places/` | List all places (extended) |
-| `GET` | `/api/v1/places/<id>` | Get a place (extended) |
-| `PUT` | `/api/v1/places/<id>` | Update a place |
-| `GET` | `/api/v1/places/<id>/reviews` | List all reviews for a place |
-
-### Reviews
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| `POST` | `/api/v1/reviews/` | Create a review |
-| `GET` | `/api/v1/reviews/<id>` | Get a review |
-| `PUT` | `/api/v1/reviews/<id>` | Update a review |
-| `DELETE` | `/api/v1/reviews/<id>` | Delete a review |
-
----
-
-## Data Models
-
-All models inherit from `BaseModel` which provides:
-
-| Field | Type | Description |
-|---|---|---|
-| `id` | string (UUID) | Auto-generated unique identifier |
-| `created_at` | string (ISO 8601) | UTC timestamp set at creation |
-| `updated_at` | string (ISO 8601) | UTC timestamp updated on every change |
-
-### User
-
-| Field | Type | Rules |
-|---|---|---|
-| `first_name` | string | Required, non-empty |
-| `last_name` | string | Required, non-empty |
-| `email` | string | Required, must match `user@domain.tld` format |
-| `password` | string | Required, **never returned in any response** |
-
-### Place
-
-| Field | Type | Rules |
-|---|---|---|
-| `title` | string | Required, non-empty |
-| `description` | string | Optional |
-| `price` | float | Required, >= 0 |
-| `latitude` | float | Required, -90 to 90 |
-| `longitude` | float | Required, -180 to 180 |
-| `owner_id` | string | Required, must reference an existing user |
-| `amenity_ids` | list[string] | Optional, each ID must reference an existing amenity |
-
-Place responses (`GET /places/` and `GET /places/<id>`) include embedded data:
-
-```json
-{
-  "owner":     { "id": "...", "first_name": "...", "last_name": "..." },
-  "amenities": [ { "id": "...", "name": "..." } ],
-  "reviews":   [ { "id": "...", "text": "...", "rating": 4 } ]
-}
-```
-
-### Review
-
-| Field | Type | Rules |
-|---|---|---|
-| `text` | string | Required, non-empty |
-| `rating` | integer | Required, 1–5 |
-| `user_id` | string | Required, must reference an existing user |
-| `place_id` | string | Required, must reference an existing place |
-
-### Amenity
-
-| Field | Type | Rules |
-|---|---|---|
-| `name` | string | Required, non-empty |
-
----
 
 ## Architecture
 
-```
+- Presentation layer: Flask-RESTx namespaces under `app/api/v1`
+- Business layer: models + facade in `app/models` and `app/services/facade.py`
+- Persistence layer: SQLAlchemy repository in `app/persistence/repository.py`
+
+The API never accesses the database session directly from endpoints. Endpoints use the facade.
+
+```text
 HTTP Request
-     │
-     ▼
-┌──────────────────────┐
-│  Presentation Layer  │  Flask-RESTx Namespaces
-│  (API Endpoints)     │  /api/v1/{users,places,reviews,amenities}
-└────────┬─────────────┘
-         │ calls only
-         ▼
-┌──────────────────────┐
-│  Business Logic      │  HBnBFacade
-│  (Facade + Models)   │  User · Place · Review · Amenity · BaseModel
-└────────┬─────────────┘
-         │ uses
-         ▼
-┌──────────────────────┐
-│  Persistence Layer   │  InMemoryRepository
-│  (Storage)           │  { "User": {id: obj}, "Place": {…}, … }
-└──────────────────────┘
+  |
+  v
+Presentation Layer (Flask-RESTx Namespaces)
+  |
+  v
+Business Layer (Facade + Domain Models)
+  |
+  v
+Persistence Layer (SQLAlchemy Repository)
+  |
+  v
+SQLite (dev/test) or MySQL (production)
 ```
 
-Key design decisions:
-- The **Facade** validates cross-model references (e.g. `owner_id` must exist before a place is saved).
-- When a review is deleted, it is also removed from the owning place's and user's review lists.
-- **Passwords** are stored as `_password` and excluded from all `to_dict()` / API responses.
-- Only **reviews** expose a `DELETE` endpoint.
-- All data is stored **in memory** — it resets on every server restart.
+## Configuration
 
----
+Configuration classes are defined in `config.py`:
 
-## Testing
+- `DevelopmentConfig`
+- `TestingConfig`
+- `ProductionConfig`
+
+Default database URIs:
+
+- Development: `sqlite:///hbnb_dev.db`
+- Testing: `sqlite:///:memory:`
+- Production: `mysql+pymysql://...`
+
+Supported environment variables:
+
+- `SECRET_KEY`
+- `JWT_SECRET_KEY`
+- `DATABASE_URL`
+- `DEV_DATABASE_URL`
+- `MYSQL_USER`
+- `MYSQL_PASSWORD`
+- `MYSQL_HOST`
+- `MYSQL_PORT`
+- `MYSQL_DATABASE`
+
+## Run Locally
 
 ```bash
-cd part2
+cd part3
+pip install -r requirements.txt
+python run.py
+```
 
-# Run all tests at once
+- API base: `http://localhost:5000/api/v1/`
+- Swagger UI: `http://localhost:5000/`
+
+## Authentication Flow
+
+### 1) Register a user
+
+Endpoint:
+
+`POST /api/v1/users/`
+
+Example body:
+
+```json
+{
+  "first_name": "Alice",
+  "last_name": "Smith",
+  "email": "alice@example.com",
+  "password": "strong-password",
+  "is_admin": false
+}
+```
+
+Passwords are hashed with bcrypt and are never returned in responses.
+
+### 2) Login and get JWT
+
+Endpoint:
+
+`POST /api/v1/auth/login`
+
+Example body:
+
+```json
+{
+  "email": "alice@example.com",
+  "password": "strong-password"
+}
+```
+
+Successful response contains `access_token`.
+
+### 3) Send token on protected routes
+
+```http
+Authorization: Bearer <access_token>
+```
+
+## Authorization Rules
+
+- `POST /api/v1/amenities/`: admin only
+- `PUT /api/v1/amenities/<amenity_id>`: admin only
+- `POST /api/v1/places/`: authenticated users (non-admin owner is forced to current user)
+- `PUT /api/v1/places/<place_id>`: owner or admin
+- `POST /api/v1/reviews/`: authenticated users (non-admin author is forced to current user)
+- `PUT /api/v1/reviews/<review_id>`: author or admin
+- `DELETE /api/v1/reviews/<review_id>`: author or admin
+
+## Admin Operations
+
+Dedicated admin namespace:
+
+- `GET /api/v1/admin/users`: list all users (admin only)
+- `PUT /api/v1/admin/users/<user_id>/role`: grant/revoke admin role (admin only)
+
+Example body for role update:
+
+```json
+{
+  "is_admin": true
+}
+```
+
+## Database Model
+
+Relational schema and ER diagram are documented in:
+
+- `DB_SCHEMA.md`
+
+Main relationships:
+
+- One user owns many places
+- One user writes many reviews
+- One place has many reviews
+- Places and amenities are many-to-many
+
+## Tests
+
+Run all tests:
+
+```bash
 python tests/run_all.py
+```
 
-# Or run a single file
+Run individual test modules:
+
+```bash
 python tests/test_users.py
 python tests/test_amenities.py
 python tests/test_places.py
 python tests/test_reviews.py
 ```
 
-| File | What it tests |
-|------|---------------|
-| `tests/test_users.py` | Create, get, list, update users – validation & 404 |
-| `tests/test_amenities.py` | Create, get, list, update amenities – validation & 404 |
-| `tests/test_places.py` | Create, get, list, update places – extended data, validation & 404 |
-| `tests/test_reviews.py` | Create, get, update, delete reviews – validation, place link & 404 |
+## Notes
 
----
+- Tables are created automatically on app startup.
+- The codebase is now fully database-backed (no in-memory repository for runtime CRUD).
+- Test helpers reset the test database for isolated test execution.
 
 # ✍️ Author
 

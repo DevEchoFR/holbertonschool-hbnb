@@ -1,6 +1,8 @@
 """Amenity endpoints – /api/v1/amenities/"""
 from flask_restx import Namespace, Resource, fields
+from flask_jwt_extended import jwt_required
 from app.services.facade import facade
+from app.api.v1.auth import require_admin_claim
 
 ns = Namespace("amenities", description="Amenity operations")
 
@@ -27,8 +29,12 @@ class AmenityList(Resource):
     @ns.expect(amenity_input_model, validate=True)
     @ns.response(201, "Created")
     @ns.response(400, "Bad Request")
+    @ns.response(401, "Unauthorized")
+    @ns.response(403, "Forbidden")
+    @jwt_required()
     def post(self):
         """Create a new amenity."""
+        require_admin_claim(ns)
         data = ns.payload
         try:
             amenity = facade.create_amenity(data)
@@ -53,8 +59,12 @@ class AmenityDetail(Resource):
     @ns.response(200, "Updated")
     @ns.response(400, "Bad Request")
     @ns.response(404, "Not Found")
+    @ns.response(401, "Unauthorized")
+    @ns.response(403, "Forbidden")
+    @jwt_required()
     def put(self, amenity_id):
         """Update an amenity."""
+        require_admin_claim(ns)
         data = ns.payload
         try:
             amenity = facade.update_amenity(amenity_id, data)

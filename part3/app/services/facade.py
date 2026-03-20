@@ -1,9 +1,10 @@
 """Facade – the only way the API talks to the data layer."""
-from app.persistence.repository import InMemoryRepository
+from app.persistence.repository import SQLAlchemyRepository
 from app.models.user import User
 from app.models.amenity import Amenity
 from app.models.place import Place
 from app.models.review import Review
+from app import db
 
 
 class HBnBFacade:
@@ -13,13 +14,16 @@ class HBnBFacade:
     """
 
     def __init__(self):
-        self.repo = InMemoryRepository()
+        self.repo = SQLAlchemyRepository()
 
     # ------------------------------------------------------------------
     # Users
     # ------------------------------------------------------------------
 
     def create_user(self, data):
+        existing = self.get_user_by_email(data["email"])
+        if existing is not None:
+            raise ValueError("email already registered")
         user = User(
             first_name=data["first_name"],
             last_name=data["last_name"],
@@ -27,8 +31,6 @@ class HBnBFacade:
             password=data["password"],
             is_admin=data.get("is_admin", False),
         )
-        # Hash the password before storing it
-        user.hash_password(data["password"])
         self.repo.add(user)
         return user
 
@@ -37,11 +39,7 @@ class HBnBFacade:
 
     def get_user_by_email(self, email):
         """Retrieve a user by their email address."""
-        users = self.repo.get_all("User")
-        for user in users:
-            if user.email == email:
-                return user
-        return None
+        return self.repo.get_by_field("User", "email", email)
 
     def list_users(self):
         return self.repo.get_all("User")
@@ -54,6 +52,9 @@ class HBnBFacade:
     # ------------------------------------------------------------------
 
     def create_amenity(self, data):
+        existing = self.repo.get_by_field("Amenity", "name", data["name"])
+        if existing is not None:
+            raise ValueError("Amenity name already exists")
         amenity = Amenity(name=data["name"])
         self.repo.add(amenity)
         return amenity
@@ -73,13 +74,17 @@ class HBnBFacade:
 
     def create_place(self, data):
         # Make sure the owner exists before creating the place
-        if not self.repo.exists("User", data.get("owner_id", "")):
+        owner = self.repo.get("User", data.get("owner_id", ""))
+        if owner is None:
             raise ValueError("owner not found")
 
         # Make sure every amenity id exists
+        amenities = []
         for aid in data.get("amenity_ids", []):
-            if not self.repo.exists("Amenity", aid):
+            amenity = self.repo.get("Amenity", aid)
+            if amenity is None:
                 raise ValueError(f"amenity {aid} not found")
+            amenities.append(amenity)
 
         place = Place(
             title=data["title"],
@@ -88,14 +93,10 @@ class HBnBFacade:
             latitude=data["latitude"],
             longitude=data["longitude"],
             owner_id=data["owner_id"],
-            amenity_ids=data.get("amenity_ids", []),
         )
+        place.owner = owner
+        place.amenities = amenities
         self.repo.add(place)
-
-        # Add this place to the owner's list
-        owner = self.repo.get("User", data["owner_id"])
-        if owner and place.id not in owner.place_ids:
-            owner.place_ids.append(place.id)
 
         return place
 
@@ -110,16 +111,25 @@ class HBnBFacade:
         return [self._extend_place(p) for p in self.repo.get_all("Place")]
 
     def update_place(self, place_id, data):
-        if "owner_id" in data and not self.repo.exists("User", data["owner_id"]):
-            raise ValueError("owner not found")
-
-        for aid in data.get("amenity_ids", []):
-            if not self.repo.exists("Amenity", aid):
-                raise ValueError(f"amenity {aid} not found")
-
-        place = self.repo.update("Place", place_id, data)
+        place = self.repo.get("Place", place_id)
         if place is None:
             return None
+
+        if "owner_id" in data and data["owner_id"] != place.owner_id:
+            raise ValueError("owner_id cannot be changed")
+
+        if "amenity_ids" in data:
+            amenities = []
+            for aid in data.get("amenity_ids", []):
+                amenity = self.repo.get("Amenity", aid)
+                if amenity is None:
+                    raise ValueError(f"amenity {aid} not found")
+                amenities.append(amenity)
+            place.amenities = amenities
+            data = {k: v for k, v in data.items() if k != "amenity_ids"}
+
+        place.update(data)
+        db.session.commit()
         return self._extend_place(place)
 
     def _extend_place(self, place):
@@ -138,20 +148,10 @@ class HBnBFacade:
             d["owner"] = None
 
         # Embed amenity names
-        amenities = []
-        for aid in place.amenity_ids:
-            a = self.repo.get("Amenity", aid)
-            if a:
-                amenities.append({"id": a.id, "name": a.name})
-        d["amenities"] = amenities
+        d["amenities"] = [{"id": a.id, "name": a.name} for a in place.amenities]
 
         # Embed reviews
-        reviews = []
-        for rid in place.review_ids:
-            r = self.repo.get("Review", rid)
-            if r:
-                reviews.append(r.to_dict())
-        d["reviews"] = reviews
+        d["reviews"] = [r.to_dict() for r in place.reviews]
 
         return d
 
@@ -160,9 +160,11 @@ class HBnBFacade:
     # ------------------------------------------------------------------
 
     def create_review(self, data):
-        if not self.repo.exists("User", data.get("user_id", "")):
+        user = self.repo.get("User", data.get("user_id", ""))
+        if user is None:
             raise ValueError("user not found")
-        if not self.repo.exists("Place", data.get("place_id", "")):
+        place = self.repo.get("Place", data.get("place_id", ""))
+        if place is None:
             raise ValueError("place not found")
 
         review = Review(
@@ -171,16 +173,9 @@ class HBnBFacade:
             user_id=data["user_id"],
             place_id=data["place_id"],
         )
+        review.author = user
+        review.place = place
         self.repo.add(review)
-
-        # Link review to its place and user
-        place = self.repo.get("Place", data["place_id"])
-        if place and review.id not in place.review_ids:
-            place.review_ids.append(review.id)
-
-        user = self.repo.get("User", data["user_id"])
-        if user and review.id not in user.review_ids:
-            user.review_ids.append(review.id)
 
         return review
 
@@ -188,27 +183,24 @@ class HBnBFacade:
         return self.repo.get("Review", review_id)
 
     def list_reviews_for_place(self, place_id):
-        return [r for r in self.repo.get_all("Review") if r.place_id == place_id]
+        place = self.repo.get("Place", place_id)
+        if place is None:
+            return []
+        return place.reviews
 
     def update_review(self, review_id, data):
         return self.repo.update("Review", review_id, data)
 
     def delete_review(self, review_id):
-        review = self.repo.get("Review", review_id)
-        if review is None:
-            return False
-
-        # Remove from place's review list
-        place = self.repo.get("Place", review.place_id)
-        if place and review_id in place.review_ids:
-            place.review_ids.remove(review_id)
-
-        # Remove from user's review list
-        user = self.repo.get("User", review.user_id)
-        if user and review_id in user.review_ids:
-            user.review_ids.remove(review_id)
-
         return self.repo.delete("Review", review_id)
+
+    def get_place_model(self, place_id):
+        """Get a place ORM model (used for authorization checks)."""
+        return self.repo.get("Place", place_id)
+
+    def get_review_model(self, review_id):
+        """Get a review ORM model (used for authorization checks)."""
+        return self.repo.get("Review", review_id)
 
 
 # One shared instance used everywhere in the app

@@ -1,5 +1,6 @@
 """Place endpoints – /api/v1/places/"""
 from flask_restx import Namespace, Resource, fields
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.services.facade import facade
 
 ns = Namespace("places", description="Place operations")
@@ -74,9 +75,17 @@ class PlaceList(Resource):
     @ns.expect(place_input_model, validate=True)
     @ns.response(201, "Created")
     @ns.response(400, "Bad Request")
+    @ns.response(401, "Unauthorized")
+    @ns.response(403, "Forbidden")
+    @jwt_required()
     def post(self):
         """Create a new place."""
         data = ns.payload
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+
+        if not claims.get("is_admin", False):
+            data["owner_id"] = current_user_id
         try:
             place = facade.create_place(data)
         except (ValueError, KeyError) as e:
@@ -103,9 +112,20 @@ class PlaceDetail(Resource):
     @ns.response(200, "Updated")
     @ns.response(400, "Bad Request")
     @ns.response(404, "Not Found")
+    @ns.response(401, "Unauthorized")
+    @ns.response(403, "Forbidden")
+    @jwt_required()
     def put(self, place_id):
         """Update a place."""
         data = ns.payload
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+
+        place_model = facade.get_place_model(place_id)
+        if place_model is None:
+            ns.abort(404, "Place not found")
+        if not claims.get("is_admin", False) and place_model.owner_id != current_user_id:
+            ns.abort(403, "You can only update your own places")
         try:
             place = facade.update_place(place_id, data)
         except ValueError as e:
@@ -123,7 +143,7 @@ class PlaceReviews(Resource):
 
     def get(self, place_id):
         """List all reviews for a place."""
-        if not facade.repo.exists("Place", place_id):
+        if facade.get_place_model(place_id) is None:
             ns.abort(404, "Place not found")
         reviews = facade.list_reviews_for_place(place_id)
         return [r.to_dict() for r in reviews], 200

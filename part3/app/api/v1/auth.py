@@ -16,6 +16,13 @@ token_response_model = ns.model("TokenResponse", {
 })
 
 
+def require_admin_claim(ns_obj):
+    """Abort with 403 when JWT does not include admin privileges."""
+    claims = get_jwt()
+    if not claims.get("is_admin", False):
+        ns_obj.abort(403, "Admin privileges required")
+
+
 # ------------------------------------------------------------------
 # Login Endpoint: POST /api/v1/auth/login
 # ------------------------------------------------------------------

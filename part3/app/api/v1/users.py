@@ -12,6 +12,7 @@ user_input_model = ns.model("UserInput", {
     "last_name":  fields.String(required=True),
     "email":      fields.String(required=True),
     "password":   fields.String(required=True),
+    "is_admin":   fields.Boolean(required=False, default=False),
 })
 
 user_update_model = ns.model("UserUpdate", {

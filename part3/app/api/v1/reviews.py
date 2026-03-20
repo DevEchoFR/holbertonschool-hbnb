@@ -1,5 +1,6 @@
 """Review endpoints – /api/v1/reviews/"""
 from flask_restx import Namespace, Resource, fields
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.services.facade import facade
 
 ns = Namespace("reviews", description="Review operations")
@@ -36,9 +37,17 @@ class ReviewList(Resource):
     @ns.expect(review_input_model, validate=True)
     @ns.response(201, "Created")
     @ns.response(400, "Bad Request")
+    @ns.response(401, "Unauthorized")
+    @ns.response(403, "Forbidden")
+    @jwt_required()
     def post(self):
         """Create a new review."""
         data = ns.payload
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+
+        if not claims.get("is_admin", False):
+            data["user_id"] = current_user_id
         try:
             review = facade.create_review(data)
         except (ValueError, KeyError) as e:
@@ -65,9 +74,20 @@ class ReviewDetail(Resource):
     @ns.response(200, "Updated")
     @ns.response(400, "Bad Request")
     @ns.response(404, "Not Found")
+    @ns.response(401, "Unauthorized")
+    @ns.response(403, "Forbidden")
+    @jwt_required()
     def put(self, review_id):
         """Update a review."""
         data = ns.payload
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+
+        review_model = facade.get_review_model(review_id)
+        if review_model is None:
+            ns.abort(404, "Review not found")
+        if not claims.get("is_admin", False) and review_model.user_id != current_user_id:
+            ns.abort(403, "You can only update your own reviews")
         try:
             review = facade.update_review(review_id, data)
         except ValueError as e:
@@ -78,8 +98,19 @@ class ReviewDetail(Resource):
 
     @ns.response(200, "Deleted")
     @ns.response(404, "Not Found")
+    @ns.response(401, "Unauthorized")
+    @ns.response(403, "Forbidden")
+    @jwt_required()
     def delete(self, review_id):
         """Delete a review."""
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+
+        review_model = facade.get_review_model(review_id)
+        if review_model is None:
+            ns.abort(404, "Review not found")
+        if not claims.get("is_admin", False) and review_model.user_id != current_user_id:
+            ns.abort(403, "You can only delete your own reviews")
         deleted = facade.delete_review(review_id)
         if not deleted:
             ns.abort(404, "Review not found")
