@@ -12,6 +12,7 @@ from flask_jwt_extended import (
 )
 from datetime import timedelta
 import uuid
+from urllib.parse import quote
 
 app = Flask(__name__)
 
@@ -90,6 +91,34 @@ reviews = [
 def find_user(email):
     return next((u for u in users if u['email'] == email), None)
 
+
+def make_place_image(title, location, primary, secondary, accent):
+        svg = f"""
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900' role='img' aria-label='{title}'>
+            <defs>
+                <linearGradient id='bg' x1='0%' y1='0%' x2='100%' y2='100%'>
+                    <stop offset='0%' stop-color='{primary}' />
+                    <stop offset='100%' stop-color='{secondary}' />
+                </linearGradient>
+                <radialGradient id='glow' cx='50%' cy='40%' r='70%'>
+                    <stop offset='0%' stop-color='rgba(255,255,255,0.30)' />
+                    <stop offset='100%' stop-color='rgba(255,255,255,0)' />
+                </radialGradient>
+            </defs>
+            <rect width='1200' height='900' fill='url(#bg)' />
+            <circle cx='920' cy='180' r='220' fill='url(#glow)' />
+            <circle cx='190' cy='710' r='240' fill='rgba(255,255,255,0.08)' />
+            <circle cx='980' cy='760' r='170' fill='rgba(255,255,255,0.10)' />
+            <rect x='0' y='610' width='1200' height='290' fill='rgba(0,0,0,0.12)' />
+            <path d='M0 645 C160 600, 290 700, 430 650 S730 600, 870 650 S1050 710, 1200 650 L1200 900 L0 900 Z' fill='rgba(255,255,255,0.10)' />
+            <text x='72' y='760' fill='white' font-family='Georgia, serif' font-size='104' font-weight='700'>{title}</text>
+            <text x='74' y='826' fill='rgba(255,255,255,0.88)' font-family='Arial, sans-serif' font-size='34' letter-spacing='4'>{location}</text>
+            <rect x='72' y='92' rx='999' ry='999' width='220' height='58' fill='{accent}' fill-opacity='0.95' />
+            <text x='112' y='132' fill='white' font-family='Arial, sans-serif' font-size='28' font-weight='700'>HBnB stay</text>
+        </svg>
+        """.strip()
+        return f"data:image/svg+xml;charset=utf-8,{quote(svg, safe='')}"
+
 # ─── ROUTES ───
 
 @app.route('/login', methods=['POST'])
@@ -100,6 +129,7 @@ def login():
 
     if not email or not password:
         return jsonify({'message': 'Email and password are required.'}), 400
+        'image': make_place_image('Montmartre', 'Paris', '#9C4F35', '#D88B5F', '#5D2418'),
 
     user = find_user(email)
     if not user or user['password'] != password:
@@ -109,6 +139,7 @@ def login():
     return jsonify({'access_token': token, 'user': {'id': user['id'], 'name': user['name']}}), 200
 
 
+        'image': make_place_image('Eiffel Loft', 'Paris', '#1E3A5F', '#5B7FA8', '#D9A441'),
 @app.route('/places', methods=['GET'])
 def get_places():
     # Return all places (public endpoint — add @jwt_required() to restrict)
@@ -118,6 +149,7 @@ def get_places():
 @app.route('/places/<place_id>', methods=['GET'])
 def get_place(place_id):
     place = next((p for p in places if p['id'] == place_id), None)
+        'image': make_place_image('Provence', 'France', '#6A4C93', '#A06CD5', '#F2C14E'),
     if not place:
         return jsonify({'message': 'Place not found.'}), 404
 
@@ -127,6 +159,7 @@ def get_place(place_id):
 
 @app.route('/reviews', methods=['POST'])
 @jwt_required()
+        'image': make_place_image('Latin Quarter', 'Paris', '#2B5876', '#4E4376', '#E07A5F'),
 def add_review():
     user_id = get_jwt_identity()
     user    = next((u for u in users if u['id'] == user_id), None)

@@ -210,17 +210,31 @@ function displayPlaces(places) {
     const div = document.createElement('div');
     div.className = 'place-card';
     div.dataset.price = place.price;
+    const placeImage = getPlaceImage(place);
+    const placeUrl = `place.html?id=${encodeURIComponent(place.id)}`;
+    const placeLocation = place.location || 'Stay somewhere special';
+    const amenityPreview = (place.amenities || []).slice(0, 3).map(a => amenityTag(a)).join('');
 
     div.innerHTML = `
-      <h3>${escapeHtml(place.name)}</h3>
-      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:4px;">
-        ${escapeHtml(place.description || '')}
-      </p>
-      <p class="price">${place.price}€ <span>/ night</span></p>
-      <div style="margin-top:8px;">
-        <a href="place.html?id=${encodeURIComponent(place.id)}">
-          <button class="details-button">View Details →</button>
-        </a>
+      <a class="place-card-media" href="${placeUrl}" aria-label="View ${escapeHtml(place.name)}">
+        <img src="${placeImage}" alt="${escapeHtml(place.name)}" loading="lazy" />
+        <span class="price-pill">€${place.price}<small>/ night</small></span>
+      </a>
+      <div class="place-card-body">
+        <div class="place-card-topline">
+          <span class="place-location">${escapeHtml(placeLocation)}</span>
+          <span class="place-host">Hosted by ${escapeHtml(place.host || 'HBnB')}</span>
+        </div>
+        <h3><a href="${placeUrl}">${escapeHtml(place.name)}</a></h3>
+        <p class="place-card-description">
+          ${escapeHtml(place.description || '')}
+        </p>
+        ${amenityPreview ? `<div class="amenities-list place-card-amenities">${amenityPreview}</div>` : ''}
+        <div class="place-card-actions">
+          <a href="${placeUrl}">
+            <button class="details-button">Explore stay →</button>
+          </a>
+        </div>
       </div>
     `;
 
@@ -299,16 +313,26 @@ function displayPlace(place) {
   const amenities = (place.amenities || [])
     .map(a => amenityTag(a))
     .join('');
+  const placeImage = getPlaceImage(place);
 
   container.innerHTML = `
-    <h2>${escapeHtml(place.name)}</h2>
-    <div class="detail-meta">
-      <span class="chip price">€${place.price} / night</span>
-      ${place.host ? `<span class="chip">🏠 Hosted by ${escapeHtml(place.host)}</span>` : ''}
-      ${place.location ? `<span class="chip">📍 ${escapeHtml(place.location)}</span>` : ''}
+    <div class="place-hero">
+      <div class="place-hero-media">
+        <img src="${placeImage}" alt="${escapeHtml(place.name)}" loading="eager" />
+        <div class="hero-badge">Featured stay</div>
+      </div>
+      <div class="place-hero-copy">
+        <p class="hero-kicker">${escapeHtml(place.location || 'Unique stay')}</p>
+        <h2>${escapeHtml(place.name)}</h2>
+        <div class="detail-meta">
+          <span class="chip price">€${place.price} / night</span>
+          ${place.host ? `<span class="chip">🏠 Hosted by ${escapeHtml(place.host)}</span>` : ''}
+          ${place.location ? `<span class="chip">📍 ${escapeHtml(place.location)}</span>` : ''}
+        </div>
+        <p class="place-description">${escapeHtml(place.description || '')}</p>
+        ${amenities ? `<div class="amenities-list">${amenities}</div>` : ''}
+      </div>
     </div>
-    <p style="color:var(--text-muted);line-height:1.8;">${escapeHtml(place.description || '')}</p>
-    ${amenities ? `<div class="amenities-list">${amenities}</div>` : ''}
   `;
 }
 
@@ -434,6 +458,34 @@ function amenityTag(name) {
   const icon = AMENITY_ICONS[name];
   const img  = icon ? `<img src="${icon}" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;opacity:0.7;">` : '';
   return `<span class="amenity-tag">${img}${escapeHtml(name)}</span>`;
+}
+
+function getPlaceImage(place) {
+  if (place && place.image) {
+    return place.image;
+  }
+
+  const title = escapeHtml((place && place.name) ? place.name : 'HBnB');
+  const location = escapeHtml((place && place.location) ? place.location : 'Stay');
+  const svg = `
+    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900' role='img' aria-label='${title}'>
+      <defs>
+        <linearGradient id='bg' x1='0%' y1='0%' x2='100%' y2='100%'>
+          <stop offset='0%' stop-color='#1F4D4F' />
+          <stop offset='100%' stop-color='#E07A5F' />
+        </linearGradient>
+      </defs>
+      <rect width='1200' height='900' fill='url(#bg)' />
+      <circle cx='930' cy='180' r='190' fill='rgba(255,255,255,0.18)' />
+      <circle cx='220' cy='720' r='220' fill='rgba(255,255,255,0.10)' />
+      <rect x='70' y='110' rx='999' ry='999' width='220' height='58' fill='rgba(255,255,255,0.18)' />
+      <text x='110' y='150' fill='white' font-family='Arial, sans-serif' font-size='28' font-weight='700'>HBnB stay</text>
+      <text x='72' y='752' fill='white' font-family='Georgia, serif' font-size='88' font-weight='700'>${title}</text>
+      <text x='74' y='818' fill='rgba(255,255,255,0.88)' font-family='Arial, sans-serif' font-size='34' letter-spacing='4'>${location}</text>
+    </svg>
+  `.trim();
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 
