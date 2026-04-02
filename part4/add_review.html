@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add Review — HBnB</title>
+  <link rel="icon" type="image/png" href="images/icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <a href="index.html" class="logo"><img src="images/logo.png" alt="hbnb" /></a>
+      <nav>
+        <a href="index.html">Places</a>
+        <a href="login.html" id="nav-login-link">Login</a>
+      </nav>
+      <a href="login.html" class="login-button" id="header-login-btn">Sign in</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="breadcrumb">
+      <a href="index.html">← Places</a>
+      <span>›</span>
+      <a href="#" id="breadcrumb-place-link">Place</a>
+      <span>›</span>
+      <span>Write a review</span>
+    </div>
+
+    <div class="form-card" style="max-width:560px;">
+      <h2>Write a review</h2>
+      <p class="subtitle" id="review-place-name">Share your experience.</p>
+
+      <form id="review-form" novalidate>
+        <div class="form-group">
+          <label>Your rating</label>
+          <div class="star-rating" id="star-rating">
+            <span class="star" data-value="1">★</span>
+            <span class="star" data-value="2">★</span>
+            <span class="star" data-value="3">★</span>
+            <span class="star" data-value="4">★</span>
+            <span class="star" data-value="5">★</span>
+          </div>
+          <input type="hidden" id="rating" name="rating" value="0" />
+        </div>
+
+        <div class="form-group">
+          <label for="review-text">Your review</label>
+          <textarea id="review-text" name="review-text" placeholder="Tell others what made this place special…" required></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="submit-btn">
+            Submit review
+          </button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2024 HBnB — All rights reserved</p>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+  <script src="scripts.js"></script>
+</body>
+</html>

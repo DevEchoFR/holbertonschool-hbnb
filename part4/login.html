@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — HBnB</title>
+  <link rel="icon" type="image/png" href="images/icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <a href="index.html" class="logo"><img src="images/logo.png" alt="hbnb" /></a>
+      <nav>
+        <a href="index.html">Places</a>
+        <a href="login.html" class="active">Login</a>
+      </nav>
+      <a href="login.html" class="login-button">Sign in</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="login-page-wrapper">
+
+      <div class="login-decorative">
+        <div style="margin-bottom:32px;">
+          <img src="images/logo.png" alt="hbnb" style="height:48px;opacity:0.15;">
+        </div>
+        <p class="login-tagline">
+          Find your<br/>perfect<br/><em>place</em> to stay.
+        </p>
+      </div>
+      </div>
+
+      <div class="form-card">
+        <h2>Welcome back</h2>
+        <p class="subtitle">Sign in to browse and review places.</p>
+
+        <form id="login-form" novalidate>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="login-btn">
+              Sign in
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2024 HBnB — All rights reserved</p>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+  <script src="scripts.js"></script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Places — HBnB</title>
+  <link rel="icon" type="image/png" href="images/icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <a href="index.html" class="logo"><img src="images/logo.png" alt="hbnb" /></a>
+      <nav>
+        <a href="index.html" class="active">Places</a>
+        <a href="login.html" id="nav-login-link">Login</a>
+      </nav>
+      <a href="login.html" class="login-button" id="header-login-btn">Sign in</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="page-hero">
+      <h1>Find a place to stay</h1>
+      <p>Browse our curated collection of unique homes and experiences.</p>
+    </div>
+
+    <div class="filter-bar">
+      <label for="price-filter">Filter by price:</label>
+      <select id="price-filter">
+        <option value="All">All prices</option>
+        <option value="50">Up to €50/night</option>
+        <option value="100">Up to €100/night</option>
+        <option value="200">Up to €200/night</option>
+        <option value="500">Up to €500/night</option>
+      </select>
+      <span id="result-count"></span>
+    </div>
+
+    <div class="places-grid" id="places-list">
+      <!-- Cards injected by JS -->
+      <div class="place-card">
+        <div class="skeleton" style="height:24px;width:60%;margin-bottom:8px;"></div>
+        <div class="skeleton" style="height:16px;width:30%;"></div>
+      </div>
+      <div class="place-card">
+        <div class="skeleton" style="height:24px;width:70%;margin-bottom:8px;"></div>
+        <div class="skeleton" style="height:16px;width:25%;"></div>
+      </div>
+      <div class="place-card">
+        <div class="skeleton" style="height:24px;width:55%;margin-bottom:8px;"></div>
+        <div class="skeleton" style="height:16px;width:35%;"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2024 HBnB — All rights reserved</p>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+  <script src="scripts.js"></script>
+</body>
+</html>

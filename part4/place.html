@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Place Details — HBnB</title>
+  <link rel="icon" type="image/png" href="images/icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <a href="index.html" class="logo"><img src="images/logo.png" alt="hbnb" /></a>
+      <nav>
+        <a href="index.html">Places</a>
+        <a href="login.html" id="nav-login-link">Login</a>
+      </nav>
+      <a href="login.html" class="login-button" id="header-login-btn">Sign in</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="breadcrumb">
+      <a href="index.html">← Places</a>
+      <span>›</span>
+      <span id="breadcrumb-name">Loading…</span>
+    </div>
+
+    <section id="place-details">
+      <!-- Injected by JS -->
+      <div class="skeleton" style="height:40px;width:55%;margin-bottom:20px;"></div>
+      <div class="skeleton" style="height:16px;width:80%;margin-bottom:10px;"></div>
+      <div class="skeleton" style="height:16px;width:65%;"></div>
+    </section>
+
+    <h2 class="section-title">Reviews</h2>
+
+    <div id="reviews-list">
+      <!-- Injected by JS -->
+    </div>
+
+    <div id="add-review-cta" style="margin-top:32px; display:none;">
+      <a href="#" id="add-review-link" class="btn btn-outline">
+        ✍️ Write a review
+      </a>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2024 HBnB — All rights reserved</p>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+  <script src="scripts.js"></script>
+</body>
+</html>
