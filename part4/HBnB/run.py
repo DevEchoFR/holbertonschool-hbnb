@@ -1,6 +1,6 @@
 """Entry point – run this file to start the server."""
-from part3.HBnB.config import get_config_from_env
-from part3.HBnB.app import create_app
+from config import get_config_from_env
+from app import create_app
 
 
 # Create the app instance from APP_ENV/FLASK_ENV (defaults to development)
