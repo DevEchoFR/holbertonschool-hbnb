@@ -12,14 +12,19 @@ function apiV1(path) {
 /* ─── UTILITIES ─── */
 
 function getCookie(name) {
-  return document.cookie.split('; ')
-    .find(row => row.startsWith(name + '='))
-    ?.split('=')[1];
+  const cookieArray = document.cookie.split('; ');
+  for (const cookie of cookieArray) {
+    const [cookieName, ...cookieValueParts] = cookie.split('=');
+    if (cookieName === name) {
+      return cookieValueParts.join('='); // Handle values that contain '='
+    }
+  }
+  return null;
 }
 
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 86400000).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+  document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax`;
 }
 
 function deleteCookie(name) {
@@ -27,7 +32,8 @@ function deleteCookie(name) {
 }
 
 function getQueryParam(key) {
-  return new URLSearchParams(window.location.search).get(key);
+  const params = new URLSearchParams(window.location.search);
+  return params.get(key) || '';
 }
 
 function showToast(message, type = '') {
@@ -57,7 +63,19 @@ function setButtonLoading(btn, loading) {
 
 function getToken() {
   const raw = getCookie('token');
-  return raw ? decodeURIComponent(raw) : null;
+  if (!raw) return null;
+  
+  // Handle both URL-encoded and plain tokens
+  try {
+    // Try to decode if it looks URL-encoded (contains %xx patterns)
+    if (raw.includes('%')) {
+      return decodeURIComponent(raw);
+    }
+    return raw;
+  } catch (e) {
+    // If decoding fails, return as-is
+    return raw;
+  }
 }
 
 function saveCurrentUser(user) {
@@ -328,7 +346,7 @@ async function fetchPlaces(token) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const apiPlaces = await response.json();
-    allPlaces = apiPlaces.map(normalizePlace);
+    allPlaces = dedupePlaces(apiPlaces.map(normalizePlace));
     applyHomepageFilters();
   } catch (error) {
     console.error('fetchPlaces:', error);
@@ -370,6 +388,7 @@ function applyHomepageFilters() {
 function displayPlaces(places) {
   const container = document.getElementById('places-list');
   const countEl   = document.getElementById('result-count');
+  const usedImages = new Set();
 
   if (!places.length) {
     container.innerHTML = `
@@ -389,7 +408,7 @@ function displayPlaces(places) {
     const div = document.createElement('div');
     div.className = 'place-card';
     div.dataset.price = place.price;
-    const placeImage = getPlaceImage(place);
+    const placeImage = getPlaceImage(place, usedImages);
     const placeUrl = `place.html?id=${encodeURIComponent(place.id)}`;
     const placeLocation = place.location || 'Stay somewhere special';
     const amenityPreview = (place.amenities || []).map(a => amenityTag(a)).join('');
@@ -461,6 +480,28 @@ function normalizePlace(rawPlace) {
     amenities,
     reviews
   };
+}
+
+function dedupePlaces(places) {
+  const seen = new Set();
+
+  return places.filter((place) => {
+    const key = [
+      place.name || place.title || '',
+      place.location || '',
+      place.host || '',
+      place.price || '',
+    ]
+      .join('|')
+      .toLowerCase();
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }
 
 /* ============================================================
@@ -701,6 +742,10 @@ const ROOM_IMAGES = [
     file: 'Budget Room in the Latin Quarter.jpg',
   },
   {
+    keywords: ['hidden storage', 'storage', 'furniture ideas', 'minimalist'],
+    file: 'Hidden Storage Furniture Ideas.jpg',
+  },
+  {
     keywords: ['cosy studio', 'cozy studio', 'montmartre'],
     file: 'Cosy Studio in Montmartre.jpg',
   },
@@ -712,22 +757,54 @@ const ROOM_IMAGES = [
     keywords: ['modern loft', 'eiffel tower', 'loft'],
     file: 'Modern Loft near the Eiffel Tower.jpg',
   },
+  {
+    keywords: ['warm minimalist tropical loft', 'tropical loft', 'luxury natural interior design inspiration', 'minimalist'],
+    file: 'Warm Minimalist Tropical Loft – Luxury Natural Interior Design Inspiration.jpg',
+  },
+  {
+    keywords: ['download', 'neutral room', 'guest room', 'placeholder'],
+    file: 'download.jpg',
+  },
 ];
 
 function roomImageUrl(fileName) {
   return `images/${encodeURI(fileName)}`;
 }
 
-function fallbackRoomImage(seedText) {
+function hashRoomSeed(seedText) {
   const normalized = String(seedText || '').toLowerCase();
   let hash = 0;
   for (let index = 0; index < normalized.length; index += 1) {
     hash = (hash * 31 + normalized.charCodeAt(index)) >>> 0;
   }
-  return roomImageUrl(ROOM_IMAGES[hash % ROOM_IMAGES.length].file);
+  return hash;
 }
 
-function getPlaceImage(place) {
+function fallbackRoomImage(seedText, usedImages = new Set(), preferredFile = null) {
+  const hash = hashRoomSeed(seedText);
+  const startIndex = hash % ROOM_IMAGES.length;
+  const candidateFiles = [];
+
+  if (preferredFile) {
+    candidateFiles.push(preferredFile);
+  }
+
+  for (let offset = 0; offset < ROOM_IMAGES.length; offset += 1) {
+    candidateFiles.push(ROOM_IMAGES[(startIndex + offset) % ROOM_IMAGES.length].file);
+  }
+
+  for (const fileName of candidateFiles) {
+    if (!usedImages.has(fileName)) {
+      usedImages.add(fileName);
+      return roomImageUrl(fileName);
+    }
+  }
+
+  const fallbackFile = preferredFile || ROOM_IMAGES[startIndex].file;
+  return roomImageUrl(fallbackFile);
+}
+
+function getPlaceImage(place, usedImages = null) {
   if (place && place.image) {
     if (place.image.startsWith('/images/')) {
       return `${API_BASE}${place.image}`;
@@ -748,6 +825,14 @@ function getPlaceImage(place) {
   const matchedRoom = ROOM_IMAGES.find((roomImage) =>
     roomImage.keywords.some((keyword) => lookupText.includes(keyword))
   );
+
+  if (usedImages) {
+    return fallbackRoomImage(
+      lookupText || (place && place.id) || 'hbnb',
+      usedImages,
+      matchedRoom ? matchedRoom.file : null,
+    );
+  }
 
   if (matchedRoom) {
     return roomImageUrl(matchedRoom.file);
@@ -793,7 +878,15 @@ function fillPlaceForm(place) {
   document.getElementById('place-price').value = place.price || '';
   document.getElementById('place-latitude').value = place.latitude ?? '';
   document.getElementById('place-longitude').value = place.longitude ?? '';
-  document.getElementById('place-amenities').value = (place.amenity_ids || []).join(', ');
+  
+  // Amenities can come as either amenity_ids array or as amenities object array
+  let amenityIds = [];
+  if (place.amenity_ids && Array.isArray(place.amenity_ids)) {
+    amenityIds = place.amenity_ids;
+  } else if (place.amenities && Array.isArray(place.amenities)) {
+    amenityIds = place.amenities.map(a => a.id || a);
+  }
+  document.getElementById('place-amenities').value = amenityIds.join(', ');
 }
 
 function collectPlaceFormData(includeOwnerId = true) {
@@ -833,47 +926,136 @@ function validatePlacePayload(payload, options = {}) {
 
 async function initCreateEditPlacePage() {
   const form = document.getElementById('place-form');
-  if (!form) return;
+  if (!form) {
+    console.error('Place form element not found!');
+    return;
+  }
 
+  // Check direct URL parameters
+  console.log('=== INIT CREATE/EDIT PAGE ===');
+  console.log('Full URL:', window.location.href);
+  console.log('Pathname:', window.location.pathname);
+  console.log('Search (query string):', window.location.search);
+  
+  // Ensure we have authentication before proceeding
   const token = checkAuth();
+  if (!token) {
+    console.error('No token found, checkAuth should have redirected but did not');
+    return;
+  }
+  
+  console.log('Token found, proceeding with page initialization');
+  
   let currentUser = getCurrentUser();
   if (!currentUser || !currentUser.id) {
+    console.log('No currentUser in localStorage, fetching from API...');
     try {
       currentUser = await fetchCurrentUser(token);
+      console.log('Fetched currentUser:', currentUser);
       saveCurrentUser(currentUser);
+      // Store in a form-accessible way
+      form.dataset.userId = currentUser.id;
     } catch (error) {
+      console.error('Failed to fetch current user:', error);
       showToast('Please login again to continue.', 'error');
       clearAuthState();
       setTimeout(() => { window.location.href = 'login.html'; }, 800);
       return;
     }
+  } else {
+    console.log('currentUser already in localStorage:', currentUser);
+    // Store in a form-accessible way
+    form.dataset.userId = currentUser.id;
   }
-    const rawPlaceId = getQueryParam('id') || getQueryParam('place_id');
-    const placeId = rawPlaceId && !['undefined', 'null', ''].includes(rawPlaceId)
-      ? rawPlaceId
-      : '';
+  
+  // Try multiple approaches to extract the place ID
+  let placeId = '';
+  
+  // Approach 1: Direct parsing of window.location.search
+  if (window.location.search) {
+    const exactMatch = window.location.search.match(/[?&]id=([^&]+)/);
+    if (exactMatch) {
+      placeId = decodeURIComponent(exactMatch[1]);
+      console.log('Found id via regex from search string:', placeId);
+    }
+  }
+  
+  // Approach 2: URLSearchParams (more robust)
+  if (!placeId && window.location.search) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const idFromUrl = urlParams.get('id');
+    if (idFromUrl) {
+      placeId = idFromUrl;
+      console.log('Found id via URLSearchParams:', placeId);
+    }
+  }
+  
+  // Approach 3: Fallback to getQueryParam
+  if (!placeId) {
+    const fallback = getQueryParam('id') || getQueryParam('place_id');
+    if (fallback) {
+      placeId = fallback;
+      console.log('Found id via getQueryParam:', placeId);
+    }
+  }
+  
+  // Trim and validate
+  if (placeId) {
+    placeId = placeId.trim();
+  }
+  
+  if (placeId === 'undefined' || placeId === 'null' || placeId === '') {
+    placeId = '';
+  }
+    
+  // Debug logging
+  console.log('Final extracted placeId:', placeId);
+  console.log('Is edit mode?', Boolean(placeId));
+  
   const heading = document.getElementById('place-form-title');
   const breadcrumb = document.getElementById('place-form-breadcrumb');
   const submitBtn = document.getElementById('place-submit-btn');
 
   if (placeId) {
+    console.log('=== EDIT MODE ===', 'Loading place:', placeId);
     if (heading) heading.textContent = 'Edit place';
     if (breadcrumb) breadcrumb.textContent = 'Edit place';
     if (submitBtn) submitBtn.textContent = 'Save changes';
     try {
       const place = await fetchPlaceForEditing(placeId, token);
+      console.log('Fetched place data:', place);
       fillPlaceForm(place);
     } catch (error) {
+      console.error('Error loading place for editing:', error);
       showToast('Could not load place details.', 'error');
     }
+  } else {
+    console.log('=== CREATE MODE === No placeId provided');
   }
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const isEdit = Boolean(placeId);
+    
+    // Ensure we have a valid owner_id before creating the payload
+    let userId = form.dataset.userId || (getCurrentUser() || {}).id;
+    if (!isEdit && !userId) {
+      console.error('No user ID available for place creation');
+      showToast('You must be logged in to create a place.', 'error');
+      return;
+    }
+    
     const payload = collectPlaceFormData(!isEdit);
+    
+    // For create mode, ensure owner_id is set from the authenticated user
+    if (!isEdit && (!payload.owner_id || payload.owner_id === '')) {
+      payload.owner_id = userId;
+      console.log('Set owner_id from form data:', payload.owner_id);
+    }
+    
     const validationError = validatePlacePayload(payload, { requireOwnerId: !isEdit });
     if (validationError) {
+      console.log('Validation error:', validationError, 'payload:', payload);
       showToast(validationError, 'error');
       return;
     }
@@ -900,9 +1082,11 @@ async function initCreateEditPlacePage() {
         }, 900);
       } else {
         const err = await response.json().catch(() => ({}));
+        console.error('API error:', err);
         showToast(err.message || 'Failed to save place.', 'error');
       }
     } catch (error) {
+      console.error('Submission error:', error);
       showToast('Cannot reach the server.', 'error');
     } finally {
       setButtonLoading(submitBtn, false);
@@ -929,15 +1113,31 @@ function renderAdminOverview(data) {
   `).join('');
 
   placesList.innerHTML = (data.places || []).map((place) => {
-    const placeId = place.id || place.place_id || '';
-    const editLink = placeId
-      ? `<a href="create_edit_place.html?id=${encodeURIComponent(placeId)}&place_id=${encodeURIComponent(placeId)}">Edit</a>`
-      : '<span class="muted">Edit unavailable</span>';
+    // Ensure we have a valid place ID from various possible field names
+    const placeId = place.id || place.place_id || place.title || '';
+    
+    // Debug logging
+    console.log('Admin rendering place:', { name: place.name, id: place.id, place_id: place.place_id, extractedId: placeId });
+    
+    // Only create an edit link if we have a non-empty, valid ID
+    if (!placeId || placeId === '' || placeId === 'undefined' || placeId === 'null') {
+      // No valid ID
+      return `
+        <li>
+          <span>${escapeHtml(place.name)} — €${place.price}</span>
+          <span class="muted">Edit unavailable</span>
+        </li>
+      `;
+    }
+    
+    // Create a properly formatted edit URL
+    const editUrl = `/create_edit_place.html?id=${encodeURIComponent(placeId)}`;
+    console.log('Generated edit URL:', editUrl);
 
     return `
     <li>
       <span>${escapeHtml(place.name)} — €${place.price}</span>
-      ${editLink}
+      <a href="${editUrl}" data-place-id="${escapeHtml(placeId)}">Edit</a>
     </li>
   `;
   }).join('');
@@ -960,6 +1160,7 @@ async function initAdminPage() {
       user = await fetchCurrentUser(token);
       saveCurrentUser(user);
     } catch (error) {
+      console.error('Failed to fetch current user:', error);
       panel.innerHTML = '<p class="empty-state">Please login again.</p>';
       return;
     }
@@ -984,12 +1185,22 @@ async function initAdminPage() {
       return;
     }
 
+    if (!usersRes.ok) {
+      const errorText = await usersRes.text();
+      console.error(`Admin users endpoint failed with ${usersRes.status}:`, errorText);
+    }
+
+    if (!placesRes.ok) {
+      const errorText = await placesRes.text();
+      console.error(`Places endpoint failed with ${placesRes.status}:`, errorText);
+    }
+
     if (!usersRes.ok || !placesRes.ok) {
       throw new Error('Failed to load admin data.');
     }
 
     const users = await usersRes.json();
-    const places = (await placesRes.json()).map(normalizePlace);
+    const places = dedupePlaces((await placesRes.json()).map(normalizePlace));
     const reviews = places.flatMap((place) => place.reviews || []);
 
     renderAdminOverview({
@@ -1003,6 +1214,7 @@ async function initAdminPage() {
       reviews
     });
   } catch (error) {
+    console.error('Admin page error:', error);
     panel.innerHTML = '<p class="empty-state">Could not load admin data.</p>';
   }
 }
@@ -1015,12 +1227,38 @@ document.addEventListener('DOMContentLoaded', () => {
   syncAuthUI();
 
   const path = window.location.pathname;
+  console.log('=== ROUTER ===');
+  console.log('Detected pathname:', path);
 
-  if (path.endsWith('signup.html'))     initSignupPage();
-  else if (path.endsWith('login.html'))      initLoginPage();
-  else if (path.endsWith('index.html') || path.endsWith('/') || path === '') initIndexPage();
-  else if (path.endsWith('place.html')) initPlacePage();
-  else if (path.endsWith('add_review.html')) initAddReviewPage();
-  else if (path.endsWith('create_edit_place.html')) initCreateEditPlacePage();
-  else if (path.endsWith('admin.html')) initAdminPage();
+  if (path.endsWith('signup.html')) {
+    console.log('-> Detected SIGNUP page');
+    initSignupPage();
+  }
+  else if (path.endsWith('login.html')) {
+    console.log('-> Detected LOGIN page');
+    initLoginPage();
+  }
+  else if (path.endsWith('index.html') || path.endsWith('/') || path === '') {
+    console.log('-> Detected INDEX page');
+    initIndexPage();
+  }
+  else if (path.endsWith('place.html')) {
+    console.log('-> Detected PLACE DETAILS page');
+    initPlacePage();
+  }
+  else if (path.endsWith('add_review.html')) {
+    console.log('-> Detected ADD REVIEW page');
+    initAddReviewPage();
+  }
+  else if (path.endsWith('create_edit_place.html')) {
+    console.log('-> Detected CREATE/EDIT PLACE page');
+    initCreateEditPlacePage();
+  }
+  else if (path.endsWith('admin.html')) {
+    console.log('-> Detected ADMIN page');
+    initAdminPage();
+  }
+  else {
+    console.log('-> No matching page detected for path:', path);
+  }
 });
