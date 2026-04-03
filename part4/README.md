@@ -33,6 +33,8 @@ Primary backend for this frontend: `part3/` API (`/api/v1/...`).
 
 ## Run Locally
 
+The old combined `run_all.sh` launcher is no longer used. Start the backend and frontend in separate terminals.
+
 ### 1. Install dependencies
 
 ```bash
