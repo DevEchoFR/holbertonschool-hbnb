@@ -13,8 +13,9 @@ from flask_jwt_extended import (
 from datetime import timedelta
 import uuid
 from urllib.parse import quote
+import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='Images_Room', static_url_path='/images')
 
 # ─── CONFIG ───
 app.config['JWT_SECRET_KEY'] = 'change-this-to-a-random-secret-in-production'
@@ -22,32 +23,6 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 
 CORS(app)          # Allow all origins (fine for dev)
 jwt = JWTManager(app)
-def make_place_image(title, location, primary, secondary, accent):
-    svg = f"""
-    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900' role='img' aria-label='{title}'>
-      <defs>
-        <linearGradient id='bg' x1='0%' y1='0%' x2='100%' y2='100%'>
-          <stop offset='0%' stop-color='{primary}' />
-          <stop offset='100%' stop-color='{secondary}' />
-        </linearGradient>
-        <radialGradient id='glow' cx='50%' cy='40%' r='70%'>
-          <stop offset='0%' stop-color='rgba(255,255,255,0.30)' />
-          <stop offset='100%' stop-color='rgba(255,255,255,0)' />
-        </radialGradient>
-      </defs>
-      <rect width='1200' height='900' fill='url(#bg)' />
-      <circle cx='920' cy='180' r='220' fill='url(#glow)' />
-      <circle cx='190' cy='710' r='240' fill='rgba(255,255,255,0.08)' />
-      <circle cx='980' cy='760' r='170' fill='rgba(255,255,255,0.10)' />
-      <rect x='0' y='610' width='1200' height='290' fill='rgba(0,0,0,0.12)' />
-      <path d='M0 645 C160 600, 290 700, 430 650 S730 600, 870 650 S1050 710, 1200 650 L1200 900 L0 900 Z' fill='rgba(255,255,255,0.10)' />
-      <text x='72' y='760' fill='white' font-family='Georgia, serif' font-size='104' font-weight='700'>{title}</text>
-      <text x='74' y='826' fill='rgba(255,255,255,0.88)' font-family='Arial, sans-serif' font-size='34' letter-spacing='4'>{location}</text>
-      <rect x='72' y='92' rx='999' ry='999' width='220' height='58' fill='{accent}' fill-opacity='0.95' />
-      <text x='112' y='132' fill='white' font-family='Arial, sans-serif' font-size='28' font-weight='700'>HBnB stay</text>
-    </svg>
-    """.strip()
-    return f"data:image/svg+xml;charset=utf-8,{quote(svg, safe='')}"
 
 # ─── IN-MEMORY DATA STORE ───
 # Replace with a real database (SQLite, PostgreSQL, etc.) for production.
@@ -75,7 +50,7 @@ places = [
         'price': 85,
         'host': 'Alice',
         'location': 'Paris, France',
-        'image': make_place_image('Montmartre', 'Paris', '#9C4F35', '#D88B5F', '#5D2418'),
+        'image': '/images/Cosy Studio in Montmartre.jpg',
         'amenities': ['WiFi', 'Kitchen', 'Heating', 'Elevator']
     },
     {
@@ -85,7 +60,7 @@ places = [
         'price': 150,
         'host': 'Bob',
         'location': 'Paris, France',
-        'image': make_place_image('Eiffel Loft', 'Paris', '#1E3A5F', '#5B7FA8', '#D9A441'),
+        'image': '/images/Modern Loft near the Eiffel Tower.jpg',
         'amenities': ['WiFi', 'Air conditioning', 'Balcony', 'Dishwasher']
     },
     {
@@ -95,7 +70,7 @@ places = [
         'price': 220,
         'host': 'Alice',
         'location': 'Provence, France',
-        'image': make_place_image('Provence', 'France', '#6A4C93', '#A06CD5', '#F2C14E'),
+        'image': '/images/Charming Provence Farmhouse.jpg',
         'amenities': ['WiFi', 'Pool', 'Garden', 'Parking', 'BBQ']
     },
     {
@@ -105,7 +80,7 @@ places = [
         'price': 45,
         'host': 'Bob',
         'location': 'Paris, France',
-        'image': make_place_image('Latin Quarter', 'Paris', '#2B5876', '#4E4376', '#E07A5F'),
+        'image': '/images/Budget Room in the Latin Quarter.jpg',
         'amenities': ['WiFi', 'Shared kitchen']
     }
 ]
@@ -120,34 +95,6 @@ reviews = [
 
 def find_user(email):
     return next((u for u in users if u['email'] == email), None)
-
-
-def make_place_image(title, location, primary, secondary, accent):
-        svg = f"""
-        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900' role='img' aria-label='{title}'>
-            <defs>
-                <linearGradient id='bg' x1='0%' y1='0%' x2='100%' y2='100%'>
-                    <stop offset='0%' stop-color='{primary}' />
-                    <stop offset='100%' stop-color='{secondary}' />
-                </linearGradient>
-                <radialGradient id='glow' cx='50%' cy='40%' r='70%'>
-                    <stop offset='0%' stop-color='rgba(255,255,255,0.30)' />
-                    <stop offset='100%' stop-color='rgba(255,255,255,0)' />
-                </radialGradient>
-            </defs>
-            <rect width='1200' height='900' fill='url(#bg)' />
-            <circle cx='920' cy='180' r='220' fill='url(#glow)' />
-            <circle cx='190' cy='710' r='240' fill='rgba(255,255,255,0.08)' />
-            <circle cx='980' cy='760' r='170' fill='rgba(255,255,255,0.10)' />
-            <rect x='0' y='610' width='1200' height='290' fill='rgba(0,0,0,0.12)' />
-            <path d='M0 645 C160 600, 290 700, 430 650 S730 600, 870 650 S1050 710, 1200 650 L1200 900 L0 900 Z' fill='rgba(255,255,255,0.10)' />
-            <text x='72' y='760' fill='white' font-family='Georgia, serif' font-size='104' font-weight='700'>{title}</text>
-            <text x='74' y='826' fill='rgba(255,255,255,0.88)' font-family='Arial, sans-serif' font-size='34' letter-spacing='4'>{location}</text>
-            <rect x='72' y='92' rx='999' ry='999' width='220' height='58' fill='{accent}' fill-opacity='0.95' />
-            <text x='112' y='132' fill='white' font-family='Arial, sans-serif' font-size='28' font-weight='700'>HBnB stay</text>
-        </svg>
-        """.strip()
-        return f"data:image/svg+xml;charset=utf-8,{quote(svg, safe='')}"
 
 # ─── ROUTES ───
 
