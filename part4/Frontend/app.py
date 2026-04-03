@@ -4,7 +4,7 @@ Run: python app.py (from part4/Frontend)
 Note: Backend must be running on http://localhost:5000
 """
 
-from flask import Flask, send_from_directory, abort
+from flask import Flask, send_from_directory, abort, request
 from flask_cors import CORS
 from urllib.parse import unquote
 import os
@@ -28,7 +28,9 @@ def index():
 @app.route('/<path:filename>')
 def serve_static(filename):
     if filename.endswith('.html'):
-        return send_from_directory('.', filename)
+        # Serve HTML file (query strings are automatically preserved by Flask)
+        response = send_from_directory('.', filename)
+        return response
     elif filename.startswith('images/'):
         # Decode the URL-encoded filename (e.g., %20 → space)
         decoded_filename = unquote(filename.replace('images/', ''))
