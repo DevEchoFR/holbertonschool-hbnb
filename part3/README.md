@@ -113,11 +113,18 @@ Supported environment variables:
 ```bash
 cd part3
 pip install -r requirements.txt
+export APP_ENV=development  # or testing / production
 python run.py
 ```
 
 - API base: `http://localhost:5000/api/v1/`
 - Swagger UI: `http://localhost:5000/`
+
+Environment selection notes:
+
+- `run.py` now reads `APP_ENV` (or `FLASK_ENV`) to choose config.
+- Supported values: `development`, `testing`, `production`.
+- If unset, it defaults to development.
 
 ## Authentication Flow
 
@@ -225,7 +232,7 @@ python tests/test_reviews.py
 - The codebase is now fully database-backed (no in-memory repository for runtime CRUD).
 - Test helpers reset the test database for isolated test execution.
 
-# ✍️ Author
+## ✍️ Author
 
-Holberton School — HBnB Project   
+Holberton School — HBnB Project
 Team: 👥 - [David Roset](https://github.com/DevEchoFR) - [Tom Marchal](https://github.com/TomMrcl)

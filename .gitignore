@@ -7,6 +7,12 @@ __pycache__/
 # Virtual environments
 venv/
 .env
+part4/v/
+
+# Local runtime and DB artifacts
+instance/
+*.db
+part4/__pycache__/
 
 # VSCode
 .vscode/

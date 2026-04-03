@@ -36,3 +36,18 @@ class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or (
         f'mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
     )
+
+
+def get_config_from_env():
+    """Return the configuration class based on APP_ENV/FLASK_ENV.
+
+    Supported values: development, testing, production.
+    Defaults to development when not provided.
+    """
+    env = (os.environ.get('APP_ENV') or os.environ.get('FLASK_ENV') or 'development').lower()
+    config_map = {
+        'development': DevelopmentConfig,
+        'testing': TestingConfig,
+        'production': ProductionConfig,
+    }
+    return config_map.get(env, DevelopmentConfig)

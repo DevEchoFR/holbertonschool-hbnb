@@ -12,14 +12,15 @@ from flask_jwt_extended import (
 )
 from datetime import timedelta
 import uuid
-from urllib.parse import quote
 import os
+import re
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__, static_folder='Images_Room', static_url_path='/images')
 
 # ─── CONFIG ───
-app.config['JWT_SECRET_KEY'] = 'change-this-to-a-random-secret-in-production'
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'change-this-to-a-random-secret-in-production')
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=int(os.environ.get('JWT_EXPIRES_HOURS', '24')))
 
 CORS(app)          # Allow all origins (fine for dev)
 jwt = JWTManager(app)
@@ -33,13 +34,13 @@ users = [
     {
         'id': '1',
         'email': 'alice@example.com',
-        'password': 'password123',   # NEVER store plain text in production — use bcrypt
+        'password': generate_password_hash('password123'),
         'name': 'Alice'
     },
     {
         'id': '2',
         'email': 'bob@example.com',
-        'password': 'password123',
+        'password': generate_password_hash('password123'),
         'name': 'Bob'
     }
 ]
@@ -88,17 +89,32 @@ places = [
 ]
 
 reviews = [
-    {'id': '1', 'place_id': '1', 'user': 'Bob',   'text': 'Absolutely lovely stay! The neighbourhood is full of charm.', 'rating': 5},
-    {'id': '2', 'place_id': '1', 'user': 'Carol', 'text': 'Clean, well-located and the host was very responsive.', 'rating': 4},
-    {'id': '3', 'place_id': '2', 'user': 'Alice', 'text': 'Great loft, very spacious. Would definitely come back.', 'rating': 5},
+    {'id': '1', 'place_id': '1', 'user_id': '2', 'user': 'Bob', 'text': 'Absolutely lovely stay! The neighbourhood is full of charm.', 'rating': 5},
+    {'id': '2', 'place_id': '1', 'user_id': '3', 'user': 'Carol', 'text': 'Clean, well-located and the host was very responsive.', 'rating': 4},
+    {'id': '3', 'place_id': '2', 'user_id': '1', 'user': 'Alice', 'text': 'Great loft, very spacious. Would definitely come back.', 'rating': 5},
 ]
 
 # ─── HELPER ───
 
+EMAIL_REGEX = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+
 def find_user(email):
-    return next((u for u in users if u['email'] == email), None)
+    normalized_email = email.strip().lower()
+    return next((u for u in users if u['email'].lower() == normalized_email), None)
+
+
+def sanitize_user(user):
+    return {'id': user['id'], 'name': user['name'], 'email': user['email']}
+
+
+def is_valid_email(email):
+    return bool(EMAIL_REGEX.match(email))
 
 # ─── ROUTES ───
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'ok'}), 200
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -110,22 +126,28 @@ def login():
         return jsonify({'message': 'Email and password are required.'}), 400
 
     user = find_user(email)
-    if not user or user['password'] != password:
+    if not user or not check_password_hash(user['password'], password):
         return jsonify({'message': 'Invalid email or password.'}), 401
 
     token = create_access_token(identity=user['id'])
-    return jsonify({'access_token': token, 'user': {'id': user['id'], 'name': user['name']}}), 200
+    return jsonify({'access_token': token, 'user': sanitize_user(user)}), 200
 
 
 @app.route('/signup', methods=['POST'])
 def signup():
     data = request.get_json(silent=True) or {}
     name     = data.get('name', '').strip()
-    email    = data.get('email', '').strip()
+    email    = data.get('email', '').strip().lower()
     password = data.get('password', '')
 
     if not name or not email or not password:
         return jsonify({'message': 'Name, email, and password are required.'}), 400
+
+    if not is_valid_email(email):
+        return jsonify({'message': 'Please provide a valid email address.'}), 400
+
+    if len(password) < 8:
+        return jsonify({'message': 'Password must be at least 8 characters long.'}), 400
 
     if find_user(email):
         return jsonify({'message': 'Email already registered.'}), 409
@@ -134,12 +156,12 @@ def signup():
         'id': str(uuid.uuid4()),
         'name': name,
         'email': email,
-        'password': password
+        'password': generate_password_hash(password)
     }
     users.append(new_user)
 
     token = create_access_token(identity=new_user['id'])
-    return jsonify({'access_token': token, 'user': {'id': new_user['id'], 'name': new_user['name']}}), 201
+    return jsonify({'access_token': token, 'user': sanitize_user(new_user)}), 201
 
 
 @app.route('/places', methods=['GET'])
@@ -167,7 +189,7 @@ def add_review():
 
     place_id = data.get('place_id', '').strip()
     text     = data.get('text', '').strip()
-    rating   = data.get('rating', 0)
+    rating_raw = data.get('rating', 0)
 
     if not place_id or not text:
         return jsonify({'message': 'place_id and text are required.'}), 400
@@ -175,12 +197,24 @@ def add_review():
     if not any(p['id'] == place_id for p in places):
         return jsonify({'message': 'Place not found.'}), 404
 
+    try:
+        rating = int(rating_raw)
+    except (TypeError, ValueError):
+        return jsonify({'message': 'rating must be an integer between 1 and 5.'}), 400
+
+    if rating < 1 or rating > 5:
+        return jsonify({'message': 'rating must be an integer between 1 and 5.'}), 400
+
+    if any(r.get('place_id') == place_id and r.get('user_id') == user_id for r in reviews):
+        return jsonify({'message': 'You already reviewed this place.'}), 409
+
     review = {
         'id':       str(uuid.uuid4()),
         'place_id': place_id,
+        'user_id':  user_id,
         'user':     user['name'] if user else 'Anonymous',
         'text':     text,
-        'rating':   int(rating)
+        'rating':   rating
     }
     reviews.append(review)
 

@@ -14,7 +14,7 @@ function getCookie(name) {
 
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 86400000).toUTCString();
-  document.cookie = `${name}=${value}; expires=${expires}; path=/`;
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
 }
 
 function deleteCookie(name) {
@@ -51,7 +51,8 @@ function setButtonLoading(btn, loading) {
 /* ─── AUTH HELPERS ─── */
 
 function getToken() {
-  return getCookie('token');
+  const raw = getCookie('token');
+  return raw ? decodeURIComponent(raw) : null;
 }
 
 function checkAuth() {
@@ -527,6 +528,12 @@ async function submitReview(token, placeId, text, rating) {
       showToast('Review submitted! Thank you.', 'success');
       setTimeout(() => {
         window.location.href = `place.html?id=${encodeURIComponent(placeId)}`;
+      }, 1200);
+    } else if (response.status === 401) {
+      deleteCookie('token');
+      showToast('Your session expired. Please login again.', 'error');
+      setTimeout(() => {
+        window.location.href = 'login.html';
       }, 1200);
     } else {
       const err = await response.json().catch(() => ({}));

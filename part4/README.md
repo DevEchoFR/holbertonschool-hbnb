@@ -21,6 +21,9 @@ Part 4 is the frontend version of HBnB. It provides a simple browser interface f
 - Log in with a test user
 - View place details and reviews
 - Add a review when authenticated
+- Password hashing for local users in the Flask app
+- Rating validation (`1` to `5`) and duplicate-review protection per user/place
+- Basic health endpoint: `GET /health`
 
 ## Run Locally
 
@@ -37,6 +40,11 @@ python app.py
 ```
 
 The app runs on `http://localhost:5000`.
+
+Optional environment variables:
+
+- `JWT_SECRET_KEY` - custom JWT signing secret for local runs
+- `JWT_EXPIRES_HOURS` - access token lifetime in hours (default: `24`)
 
 ## Usage Notes
 
@@ -58,7 +66,7 @@ part4/
 └── images/
 ```
 
-# ✍️ Author
+## ✍️ Author
 
-Holberton School — HBnB HBnB - Simple Web Client Project   
+Holberton School — HBnB HBnB - Simple Web Client Project
 Team: 👥 - [David Roset](https://github.com/DevEchoFR)
