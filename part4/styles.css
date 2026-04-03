@@ -507,30 +507,150 @@ footer {
 
 /* ─── LOGIN PAGE ─── */
 .login-page-wrapper {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  align-items: start;
+  gap: 22px;
+  min-height: clamp(460px, 68vh, 700px);
+}
+.login-showcase {
+  border: 1px solid rgba(227,216,202,0.9);
+  border-radius: 30px;
+  padding: 36px;
+  background:
+    radial-gradient(circle at 80% 0%, rgba(255,255,255,0.26), transparent 26%),
+    linear-gradient(135deg, #24556e 0%, #143849 60%, #0b2430 100%);
+  color: #fef4eb;
+  box-shadow: var(--shadow-lg);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(100vh - 68px - 60px);
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  position: relative;
 }
-.login-decorative {
-  display: none;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
+.login-showcase::after {
+  content: '';
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  right: -120px;
+  bottom: -140px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
 }
-@media (min-width: 900px) {
-  .login-page-wrapper { gap: 25px; }
-  .login-decorative { display: flex; }
+.showcase-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.35);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 22px;
 }
-.login-tagline {
+.showcase-title {
   font-family: var(--font-display);
-  font-size: 3rem;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-  color: var(--text);
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  max-width: 14ch;
+  margin-bottom: 12px;
 }
-.login-tagline em { color: var(--accent); font-style: italic; }
+.showcase-copy {
+  font-size: 1rem;
+  line-height: 1.75;
+  max-width: 42ch;
+  color: rgba(254,244,235,0.84);
+}
+.showcase-cards {
+  margin-top: 38px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.showcase-card {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.24);
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(8px);
+}
+.showcase-card h3 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  margin-bottom: 6px;
+}
+.showcase-card p {
+  font-size: 0.87rem;
+  color: rgba(254,244,235,0.82);
+}
+.showcase-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #ffd4bd;
+}
+
+.login-card {
+  max-width: none;
+  margin: 0;
+  border-radius: 26px;
+  padding: 34px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.login-card-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.login-card-brand img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+.login-card-brand span {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.login-card h2 {
+  margin-bottom: 8px;
+}
+.login-card .subtitle {
+  margin-bottom: 20px;
+}
+.login-trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.login-trust-row span {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+.login-field input {
+  background: linear-gradient(180deg, #fff 0%, #fcf7f1 100%);
+}
+.login-helper {
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
 
 /* ─── STAR RATING ─── */
 .star-rating { display: flex; gap: 4px; margin: 8px 0; }
@@ -560,4 +680,14 @@ footer {
   .places-grid { grid-template-columns: 1fr; }
   .place-card-body { padding: 18px; }
   .price-pill { right: 12px; bottom: 12px; }
+  .login-page-wrapper { grid-template-columns: 1fr; min-height: auto; }
+  .login-showcase { padding: 24px; border-radius: 22px; }
+  .showcase-cards { grid-template-columns: 1fr; margin-top: 22px; }
+  .showcase-title { max-width: 100%; }
+  .login-card { padding: 24px 20px; border-radius: 20px; }
+}
+
+@media (max-width: 1024px) {
+  .login-page-wrapper { grid-template-columns: 1fr; }
+  .login-showcase { min-height: 360px; }
 }

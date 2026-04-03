@@ -22,41 +22,62 @@
 
   <main>
     <div class="login-page-wrapper">
-
-      <div class="login-decorative">
-        <div style="margin-bottom:32px;">
-          <img src="images/logo.png" alt="hbnb" style="height:48px;opacity:0.15;">
-        </div>
-        <p class="login-tagline">
-          Find your<br/>perfect<br/><em>place</em> to stay.
+      <section class="login-showcase" aria-hidden="true">
+        <div class="showcase-badge">HBnB Member Access</div>
+        <h1 class="showcase-title">Stay somewhere with a story.</h1>
+        <p class="showcase-copy">
+          Unlock saved favorites, share reviews, and book stays that feel curated, not copied.
         </p>
-      </div>
-      </div>
+        <div class="showcase-cards">
+          <article class="showcase-card">
+            <p class="showcase-label">Trending now</p>
+            <h3>Provence Farmhouse</h3>
+            <p>Lavender fields, stone walls, and sunset dinners.</p>
+          </article>
+          <article class="showcase-card">
+            <p class="showcase-label">Guest rating</p>
+            <h3>4.9 / 5</h3>
+            <p>Based on recent verified stays this month.</p>
+          </article>
+        </div>
+      </section>
 
-      <div class="form-card">
-        <h2>Welcome back</h2>
-        <p class="subtitle">Sign in to browse and review places.</p>
+      <section class="form-card login-card">
+        <div class="login-card-brand">
+          <img src="images/logo.png" alt="hbnb" />
+          <span>Welcome back</span>
+        </div>
+
+        <h2>Sign in to your account</h2>
+        <p class="subtitle">Continue to browse places and publish your reviews.</p>
+
+        <div class="login-trust-row" aria-hidden="true">
+          <span>Secure sign-in</span>
+          <span>Fast checkout</span>
+          <span>Saved stays</span>
+        </div>
 
         <form id="login-form" novalidate>
-          <div class="form-group">
+          <div class="form-group login-field">
             <label for="email">Email</label>
             <input type="email" id="email" name="email" placeholder="you@example.com" required autocomplete="email" />
           </div>
 
-          <div class="form-group">
+          <div class="form-group login-field">
             <label for="password">Password</label>
             <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" />
           </div>
 
           <div class="form-actions">
             <button type="submit" class="btn btn-primary" id="login-btn">
-              Sign in
+              Enter HBnB
             </button>
           </div>
         </form>
-      </div>
 
-    </div>
+        <p class="login-helper">Demo access: alice@example.com / password123</p>
+      </section>
+      </div>
   </main>
 
   <footer>
