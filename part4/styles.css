@@ -88,12 +88,24 @@ nav a {
   transition: background var(--transition), color var(--transition);
 }
 nav a:hover { background: var(--surface-alt); color: var(--text); }
-nav a.active { background: var(--accent-light); color: var(--accent); }
+nav a.active { background: var(--surface-alt); color: var(--text); }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.create-account-link {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+  transition: color var(--transition);
+}
+.create-account-link:hover { color: var(--accent); }
 .login-button {
   font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 600;
-  background: var(--accent);
+  background: #E82E63;
   color: #fff;
   border: none;
   padding: 8px 20px;
@@ -105,7 +117,7 @@ nav a.active { background: var(--accent-light); color: var(--accent); }
   align-items: center;
   gap: 6px;
 }
-.login-button:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.login-button:hover { background: #D91A54; transform: translateY(-1px); }
 
 /* ─── MAIN / LAYOUT ─── */
 main { flex: 1; max-width: 1240px; margin: 0 auto; width: 100%; padding: 48px 24px 64px; position: relative; z-index: 1; }
