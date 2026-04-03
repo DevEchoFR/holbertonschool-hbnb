@@ -946,27 +946,28 @@ async function initCreateEditPlacePage() {
   
   console.log('Token found, proceeding with page initialization');
   
-  let currentUser = getCurrentUser();
-  if (!currentUser || !currentUser.id) {
-    console.log('No currentUser in localStorage, fetching from API...');
+  // Get the authenticated user - this is crucial for place creation
+  let authenticatedUser = getCurrentUser();
+  if (!authenticatedUser || !authenticatedUser.id) {
+    console.log('Fetching authenticated user from API...');
     try {
-      currentUser = await fetchCurrentUser(token);
-      console.log('Fetched currentUser:', currentUser);
-      saveCurrentUser(currentUser);
-      // Store in a form-accessible way
-      form.dataset.userId = currentUser.id;
+      authenticatedUser = await fetchCurrentUser(token);
+      console.log('Fetched authenticatedUser:', authenticatedUser);
+      saveCurrentUser(authenticatedUser);
     } catch (error) {
-      console.error('Failed to fetch current user:', error);
+      console.error('Failed to fetch authenticated user:', error);
       showToast('Please login again to continue.', 'error');
       clearAuthState();
       setTimeout(() => { window.location.href = 'login.html'; }, 800);
       return;
     }
   } else {
-    console.log('currentUser already in localStorage:', currentUser);
-    // Store in a form-accessible way
-    form.dataset.userId = currentUser.id;
+    console.log('authenticatedUser already in localStorage:', authenticatedUser);
   }
+  
+  // Store the authenticated user ID on the form for later use
+  form.dataset.authenticatedUserId = authenticatedUser.id;
+  console.log('Stored authenticatedUserId on form:', authenticatedUser.id);
   
   // Try multiple approaches to extract the place ID
   let placeId = '';
@@ -1035,35 +1036,41 @@ async function initCreateEditPlacePage() {
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    
     const isEdit = Boolean(placeId);
+    console.log('Form submitted. Is edit mode?', isEdit);
     
-    // Ensure we have a valid owner_id before creating the payload
-    let userId = form.dataset.userId || (getCurrentUser() || {}).id;
-    if (!isEdit && !userId) {
-      console.error('No user ID available for place creation');
-      showToast('You must be logged in to create a place.', 'error');
-      return;
+    // Collect form data
+    const payload = collectPlaceFormData(false); // Don't include owner_id from here
+    
+    // For CREATE mode, ALWAYS set owner_id from authenticated user
+    if (!isEdit) {
+      const authenticatedUserId = form.dataset.authenticatedUserId;
+      if (!authenticatedUserId) {
+        console.error('No authenticated user ID available!');
+        showToast('Authentication error: Please login again.', 'error');
+        return;
+      }
+      payload.owner_id = authenticatedUserId;
+      console.log('CREATE mode: Set owner_id to', authenticatedUserId);
     }
     
-    const payload = collectPlaceFormData(!isEdit);
-    
-    // For create mode, ensure owner_id is set from the authenticated user
-    if (!isEdit && (!payload.owner_id || payload.owner_id === '')) {
-      payload.owner_id = userId;
-      console.log('Set owner_id from form data:', payload.owner_id);
-    }
-    
+    // Validate the payload
     const validationError = validatePlacePayload(payload, { requireOwnerId: !isEdit });
     if (validationError) {
-      console.log('Validation error:', validationError, 'payload:', payload);
+      console.log('Validation failed:', validationError);
       showToast(validationError, 'error');
       return;
     }
+    
+    console.log('Validation passed. Payload:', payload);
 
     setButtonLoading(submitBtn, true);
     try {
       const endpoint = placeId ? apiV1(`/places/${placeId}`) : apiV1('/places/');
       const method = placeId ? 'PUT' : 'POST';
+      
+      console.log(`Sending ${method} request to ${endpoint}`);
 
       const response = await fetch(endpoint, {
         method,
@@ -1074,19 +1081,22 @@ async function initCreateEditPlacePage() {
         body: JSON.stringify(payload)
       });
 
+      console.log(`Response status: ${response.status}`);
+
       if (response.ok) {
         const place = await response.json();
         showToast(placeId ? 'Place updated successfully.' : 'Place created successfully.', 'success');
+        console.log('Success! Redirecting to place details...');
         setTimeout(() => {
           window.location.href = `place.html?id=${encodeURIComponent(place.id)}`;
         }, 900);
       } else {
         const err = await response.json().catch(() => ({}));
-        console.error('API error:', err);
+        console.error('API returned error:', err);
         showToast(err.message || 'Failed to save place.', 'error');
       }
     } catch (error) {
-      console.error('Submission error:', error);
+      console.error('Network or submission error:', error);
       showToast('Cannot reach the server.', 'error');
     } finally {
       setButtonLoading(submitBtn, false);
