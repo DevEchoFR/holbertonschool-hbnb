@@ -448,15 +448,26 @@ async function submitReview(token, placeId, text, rating) {
 }
 
 const AMENITY_ICONS = {
-  'WiFi':    'images/icon_wifi.png',
-  'Bed':     'images/icon_bed.png',
-  'Bath':    'images/icon_bath.png',
-  'Shower':  'images/icon_bath.png',
+  'WiFi':             'images/icon_wifi.png',
+  'Bed':              'images/icon_bed.png',
+  'Bath':             'images/icon_bath.png',
+  'Shower':           'images/icon_bath.png',
+  'Air conditioning': 'images/icon_air_conditioning.png',
+  'Balcony':          'images/icon_balcony.png',
+  'Garden':           'images/icon_garden.png',
+  'Heating':          'images/icon_heating.png',
+  'Elevator':         'images/icon_elevator.png',
+  'Kitchen':          'images/icon_kitchen.png',
+  'Pool':             'images/icon_pool.png',
+  'Shared kitchen':   'images/icon_shared_kitchen.png',
 };
 
 function amenityTag(name) {
   const icon = AMENITY_ICONS[name];
-  const img  = icon ? `<img src="${icon}" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;opacity:0.7;">` : '';
+  const img  = icon
+    ? `<img src="${icon}" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;opacity:0.7;">`
+    : '';
+
   return `<span class="amenity-tag">${img}${escapeHtml(name)}</span>`;
 }
 

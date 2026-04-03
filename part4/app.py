@@ -24,6 +24,8 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 CORS(app)          # Allow all origins (fine for dev)
 jwt = JWTManager(app)
 
+IMAGE_BASE_URL = 'http://localhost:5000/images'
+
 # ─── IN-MEMORY DATA STORE ───
 # Replace with a real database (SQLite, PostgreSQL, etc.) for production.
 
@@ -50,7 +52,7 @@ places = [
         'price': 85,
         'host': 'Alice',
         'location': 'Paris, France',
-        'image': '/images/Cosy Studio in Montmartre.jpg',
+        'image': f'{IMAGE_BASE_URL}/Cosy Studio in Montmartre.jpg',
         'amenities': ['WiFi', 'Kitchen', 'Heating', 'Elevator']
     },
     {
@@ -60,7 +62,7 @@ places = [
         'price': 150,
         'host': 'Bob',
         'location': 'Paris, France',
-        'image': '/images/Modern Loft near the Eiffel Tower.jpg',
+        'image': f'{IMAGE_BASE_URL}/Modern Loft near the Eiffel Tower.jpg',
         'amenities': ['WiFi', 'Air conditioning', 'Balcony', 'Dishwasher']
     },
     {
@@ -70,7 +72,7 @@ places = [
         'price': 220,
         'host': 'Alice',
         'location': 'Provence, France',
-        'image': '/images/Charming Provence Farmhouse.jpg',
+        'image': f'{IMAGE_BASE_URL}/Charming Provence Farmhouse.jpg',
         'amenities': ['WiFi', 'Pool', 'Garden', 'Parking', 'BBQ']
     },
     {
@@ -80,7 +82,7 @@ places = [
         'price': 45,
         'host': 'Bob',
         'location': 'Paris, France',
-        'image': '/images/Budget Room in the Latin Quarter.jpg',
+        'image': f'{IMAGE_BASE_URL}/Budget Room in the Latin Quarter.jpg',
         'amenities': ['WiFi', 'Shared kitchen']
     }
 ]
