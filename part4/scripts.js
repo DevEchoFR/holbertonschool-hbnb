@@ -462,6 +462,9 @@ function amenityTag(name) {
 
 function getPlaceImage(place) {
   if (place && place.image) {
+    if (place.image.startsWith('/images/')) {
+      return `${API_BASE}${place.image}`;
+    }
     return place.image;
   }
 
