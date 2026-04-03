@@ -49,41 +49,41 @@ places = [
         'id': '1',
         'name': 'Cosy Studio in Montmartre',
         'description': 'A bright studio apartment in the heart of Montmartre with stunning views of Sacré-Cœur.',
-        'price': 85,
+        'price': 175,
         'host': 'Alice',
         'location': 'Paris, France',
         'image': f'{IMAGE_BASE_URL}/Cosy Studio in Montmartre.jpg',
-        'amenities': ['WiFi', 'Kitchen', 'Heating', 'Elevator']
+        'amenities': ['WiFi', 'Air conditioning', 'Heating', 'Elevator', 'Balcony', 'Kitchen', 'Dishwasher']
     },
     {
         'id': '2',
         'name': 'Modern Loft near the Eiffel Tower',
         'description': 'Stylish open-plan loft just a 10-minute walk from the Eiffel Tower.',
-        'price': 150,
+        'price': 125,
         'host': 'Bob',
         'location': 'Paris, France',
         'image': f'{IMAGE_BASE_URL}/Modern Loft near the Eiffel Tower.jpg',
-        'amenities': ['WiFi', 'Air conditioning', 'Balcony', 'Dishwasher']
+        'amenities': ['WiFi', 'Air conditioning', 'Heating', 'Balcony',]
     },
     {
         'id': '3',
         'name': 'Charming Provence Farmhouse',
         'description': 'Peaceful stone farmhouse surrounded by lavender fields and olive trees.',
-        'price': 220,
+        'price': 225,
         'host': 'Alice',
         'location': 'Provence, France',
         'image': f'{IMAGE_BASE_URL}/Charming Provence Farmhouse.jpg',
-        'amenities': ['WiFi', 'Pool', 'Garden', 'Parking', 'BBQ']
+        'amenities': ['WiFi', 'Air conditioning', 'Heating', 'Pool', 'Garden', 'Parking', 'BBQ', 'Dishwasher']
     },
     {
         'id': '4',
         'name': 'Budget Room in the Latin Quarter',
         'description': 'Clean and comfortable private room in a shared apartment, great transport links.',
-        'price': 45,
+        'price': 75,
         'host': 'Bob',
         'location': 'Paris, France',
         'image': f'{IMAGE_BASE_URL}/Budget Room in the Latin Quarter.jpg',
-        'amenities': ['WiFi', 'Shared kitchen']
+        'amenities': ['WiFi', 'Air conditioning', 'Heating', 'Shared kitchen']
     }
 ]
 

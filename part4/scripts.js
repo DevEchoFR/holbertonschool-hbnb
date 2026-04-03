@@ -213,7 +213,7 @@ function displayPlaces(places) {
     const placeImage = getPlaceImage(place);
     const placeUrl = `place.html?id=${encodeURIComponent(place.id)}`;
     const placeLocation = place.location || 'Stay somewhere special';
-    const amenityPreview = (place.amenities || []).slice(0, 3).map(a => amenityTag(a)).join('');
+    const amenityPreview = (place.amenities || []).map(a => amenityTag(a)).join('');
 
     div.innerHTML = `
       <a class="place-card-media" href="${placeUrl}" aria-label="View ${escapeHtml(place.name)}">
@@ -454,11 +454,14 @@ const AMENITY_ICONS = {
   'Shower':           'images/icon_bath.png',
   'Air conditioning': 'images/icon_air_conditioning.png',
   'Balcony':          'images/icon_balcony.png',
+  'Dishwasher':       'images/icon_dishwasher.png',
   'Garden':           'images/icon_garden.png',
   'Heating':          'images/icon_heating.png',
   'Elevator':         'images/icon_elevator.png',
   'Kitchen':          'images/icon_kitchen.png',
+  'Parking':          'images/icon_parking.png',
   'Pool':             'images/icon_pool.png',
+  'BBQ':              'images/icon_bbq.png',
   'Shared kitchen':   'images/icon_shared_kitchen.png',
 };
 
