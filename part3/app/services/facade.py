@@ -150,8 +150,14 @@ class HBnBFacade:
         # Embed amenity names
         d["amenities"] = [{"id": a.id, "name": a.name} for a in place.amenities]
 
-        # Embed reviews
-        d["reviews"] = [r.to_dict() for r in place.reviews]
+        # Embed reviews with author display name for frontend usage
+        d["reviews"] = []
+        for review in place.reviews:
+            review_data = review.to_dict()
+            author = self.repo.get("User", review.user_id)
+            if author is not None:
+                review_data["user"] = f"{author.first_name} {author.last_name}".strip()
+            d["reviews"].append(review_data)
 
         return d
 

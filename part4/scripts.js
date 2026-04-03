@@ -2,7 +2,12 @@
    scripts.js — HBnB Frontend Logic
    ============================================================ */
 
-const API_BASE = 'http://localhost:5000';   // ← change this to your server URL
+const API_BASE = 'http://localhost:5000';
+const API_V1_BASE = `${API_BASE}/api/v1`;
+
+function apiV1(path) {
+  return `${API_V1_BASE}${path}`;
+}
 
 /* ─── UTILITIES ─── */
 
@@ -55,6 +60,35 @@ function getToken() {
   return raw ? decodeURIComponent(raw) : null;
 }
 
+function saveCurrentUser(user) {
+  if (!user) return;
+  localStorage.setItem('currentUser', JSON.stringify(user));
+}
+
+function getCurrentUser() {
+  try {
+    const raw = localStorage.getItem('currentUser');
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function clearAuthState() {
+  deleteCookie('token');
+  localStorage.removeItem('currentUser');
+}
+
+async function fetchCurrentUser(token) {
+  const response = await fetch(apiV1('/auth/me'), {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) {
+    throw new Error('Could not load current user.');
+  }
+  return response.json();
+}
+
 function checkAuth() {
   const token = getToken();
   if (!token) {
@@ -66,15 +100,25 @@ function checkAuth() {
 /** Update header login button based on auth state */
 function syncAuthUI() {
   const token = getToken();
+  const user = getCurrentUser();
   const btn = document.getElementById('header-login-btn');
   const navLink = document.getElementById('nav-login-link');
+  const adminLink = document.getElementById('admin-link');
+
+  if (adminLink) {
+    if (token && user && user.is_admin) {
+      adminLink.style.display = 'inline-flex';
+    } else {
+      adminLink.style.display = 'none';
+    }
+  }
 
   if (token && btn) {
     btn.textContent = 'Logout';
     btn.href = '#';
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      deleteCookie('token');
+      clearAuthState();
       window.location.href = 'login.html';
     });
   }
@@ -83,7 +127,7 @@ function syncAuthUI() {
     navLink.href = '#';
     navLink.addEventListener('click', (e) => {
       e.preventDefault();
-      deleteCookie('token');
+      clearAuthState();
       window.location.href = 'login.html';
     });
   }
@@ -121,7 +165,7 @@ async function handleLogin(e) {
   setButtonLoading(btn, true);
 
   try {
-    const response = await fetch(`${API_BASE}/login`, {
+    const response = await fetch(apiV1('/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -130,6 +174,12 @@ async function handleLogin(e) {
     if (response.ok) {
       const data = await response.json();
       setCookie('token', data.access_token);
+      if (data.user) {
+        saveCurrentUser(data.user);
+      } else {
+        const profile = await fetchCurrentUser(data.access_token);
+        saveCurrentUser(profile);
+      }
       showToast('Logged in! Redirecting…', 'success');
       setTimeout(() => { window.location.href = 'index.html'; }, 800);
     } else {
@@ -179,18 +229,43 @@ async function handleSignup(e) {
     return;
   }
 
+  const [firstName, ...restNames] = name.split(/\s+/).filter(Boolean);
+  const lastName = restNames.join(' ') || 'User';
+
   setButtonLoading(btn, true);
 
   try {
-    const response = await fetch(`${API_BASE}/signup`, {
+    const response = await fetch(apiV1('/users/'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password })
+      body: JSON.stringify({
+        first_name: firstName || 'User',
+        last_name: lastName,
+        email,
+        password
+      })
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      setCookie('token', data.access_token);
+    if (response.ok || response.status === 201) {
+      const loginResponse = await fetch(apiV1('/auth/login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!loginResponse.ok) {
+        throw new Error('Account created but auto-login failed.');
+      }
+
+      const loginData = await loginResponse.json();
+      setCookie('token', loginData.access_token);
+      if (loginData.user) {
+        saveCurrentUser(loginData.user);
+      } else {
+        const profile = await fetchCurrentUser(loginData.access_token);
+        saveCurrentUser(profile);
+      }
+
       showToast('Account created! Redirecting…', 'success');
       setTimeout(() => { window.location.href = 'index.html'; }, 800);
     } else {
@@ -243,7 +318,7 @@ async function fetchPlaces(token) {
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const response = await fetch(`${API_BASE}/places`, { headers });
+    const response = await fetch(apiV1('/places/'), { headers });
 
     if (response.status === 401) {
       // Show places anyway if API allows, or redirect
@@ -252,7 +327,8 @@ async function fetchPlaces(token) {
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    allPlaces = await response.json();
+    const apiPlaces = await response.json();
+    allPlaces = apiPlaces.map(normalizePlace);
     applyHomepageFilters();
   } catch (error) {
     console.error('fetchPlaces:', error);
@@ -349,6 +425,44 @@ function applyPriceFilter() {
   applyHomepageFilters();
 }
 
+function normalizePlace(rawPlace) {
+  const amenities = Array.isArray(rawPlace.amenities)
+    ? rawPlace.amenities.map((item) => {
+      if (typeof item === 'string') return item;
+      return item && item.name ? item.name : '';
+    }).filter(Boolean)
+    : [];
+
+  const host = rawPlace.host
+    || (rawPlace.owner
+      ? `${rawPlace.owner.first_name || ''} ${rawPlace.owner.last_name || ''}`.trim()
+      : 'HBnB');
+
+  const location = rawPlace.location
+    || ((rawPlace.latitude !== undefined && rawPlace.longitude !== undefined)
+      ? `${Number(rawPlace.latitude).toFixed(4)}, ${Number(rawPlace.longitude).toFixed(4)}`
+      : 'Location unavailable');
+
+  const reviews = Array.isArray(rawPlace.reviews)
+    ? rawPlace.reviews.map((review) => ({
+      ...review,
+      user: review.user || review.author || 'Guest'
+    }))
+    : [];
+
+  return {
+    ...rawPlace,
+    name: rawPlace.name || rawPlace.title || 'Untitled stay',
+    title: rawPlace.title || rawPlace.name || 'Untitled stay',
+    description: rawPlace.description || '',
+    price: Number(rawPlace.price || 0),
+    host,
+    location,
+    amenities,
+    reviews
+  };
+}
+
 /* ============================================================
    PAGE: PLACE DETAILS
    ============================================================ */
@@ -378,10 +492,10 @@ async function fetchPlaceDetails(token, id) {
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const response = await fetch(`${API_BASE}/places/${id}`, { headers });
+    const response = await fetch(apiV1(`/places/${id}`), { headers });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const place = await response.json();
+    const place = normalizePlace(await response.json());
     displayPlace(place);
     displayReviews(place.reviews || []);
 
@@ -515,13 +629,23 @@ function highlightStars(stars, value) {
 
 async function submitReview(token, placeId, text, rating) {
   try {
-    const response = await fetch(`${API_BASE}/reviews`, {
+    let currentUser = getCurrentUser();
+    if (!currentUser) {
+      currentUser = await fetchCurrentUser(token);
+      saveCurrentUser(currentUser);
+    }
+    const response = await fetch(apiV1('/reviews/'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ place_id: placeId, text, rating })
+      body: JSON.stringify({
+        place_id: placeId,
+        text,
+        rating,
+        user_id: currentUser ? currentUser.id : ''
+      })
     });
 
     if (response.ok) {
@@ -530,7 +654,7 @@ async function submitReview(token, placeId, text, rating) {
         window.location.href = `place.html?id=${encodeURIComponent(placeId)}`;
       }, 1200);
     } else if (response.status === 401) {
-      deleteCookie('token');
+      clearAuthState();
       showToast('Your session expired. Please login again.', 'error');
       setTimeout(() => {
         window.location.href = 'login.html';
@@ -612,6 +736,229 @@ function escapeHtml(str) {
 }
 
 /* ============================================================
+   PAGE: CREATE / EDIT PLACE
+   ============================================================ */
+
+function parseAmenitiesInput(value) {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+async function fetchPlaceForEditing(placeId, token) {
+  const response = await fetch(apiV1(`/places/${placeId}`), {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) {
+    throw new Error('Unable to load place for editing.');
+  }
+  return response.json();
+}
+
+function fillPlaceForm(place) {
+  const normalized = normalizePlace(place);
+  document.getElementById('place-name').value = normalized.name || '';
+  document.getElementById('place-description').value = place.description || '';
+  document.getElementById('place-price').value = place.price || '';
+  document.getElementById('place-latitude').value = place.latitude ?? '';
+  document.getElementById('place-longitude').value = place.longitude ?? '';
+  document.getElementById('place-amenities').value = (place.amenity_ids || []).join(', ');
+}
+
+function collectPlaceFormData() {
+  const currentUser = getCurrentUser();
+  return {
+    title: document.getElementById('place-name').value.trim(),
+    description: document.getElementById('place-description').value.trim(),
+    price: Number(document.getElementById('place-price').value),
+    latitude: Number(document.getElementById('place-latitude').value),
+    longitude: Number(document.getElementById('place-longitude').value),
+    owner_id: currentUser ? currentUser.id : '',
+    amenity_ids: parseAmenitiesInput(document.getElementById('place-amenities').value)
+  };
+}
+
+function validatePlacePayload(payload) {
+  if (!payload.title || !payload.description) {
+    return 'Name and description are required.';
+  }
+  if (!payload.price || Number.isNaN(payload.price) || payload.price <= 0) {
+    return 'Price must be greater than zero.';
+  }
+  if (Number.isNaN(payload.latitude) || Number.isNaN(payload.longitude)) {
+    return 'Latitude and longitude are required.';
+  }
+  if (!payload.owner_id) {
+    return 'You must be logged in to create a place.';
+  }
+  return '';
+}
+
+async function initCreateEditPlacePage() {
+  const form = document.getElementById('place-form');
+  if (!form) return;
+
+  const token = checkAuth();
+  if (!getCurrentUser()) {
+    try {
+      saveCurrentUser(await fetchCurrentUser(token));
+    } catch (error) {
+      showToast('Please login again to continue.', 'error');
+      clearAuthState();
+      setTimeout(() => { window.location.href = 'login.html'; }, 800);
+      return;
+    }
+  }
+  const placeId = getQueryParam('id');
+  const heading = document.getElementById('place-form-title');
+  const breadcrumb = document.getElementById('place-form-breadcrumb');
+  const submitBtn = document.getElementById('place-submit-btn');
+
+  if (placeId) {
+    if (heading) heading.textContent = 'Edit place';
+    if (breadcrumb) breadcrumb.textContent = 'Edit place';
+    if (submitBtn) submitBtn.textContent = 'Save changes';
+    try {
+      const place = await fetchPlaceForEditing(placeId, token);
+      fillPlaceForm(place);
+    } catch (error) {
+      showToast('Could not load place details.', 'error');
+    }
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const payload = collectPlaceFormData();
+    const validationError = validatePlacePayload(payload);
+    if (validationError) {
+      showToast(validationError, 'error');
+      return;
+    }
+
+    setButtonLoading(submitBtn, true);
+    try {
+      const endpoint = placeId ? apiV1(`/places/${placeId}`) : apiV1('/places/');
+      const method = placeId ? 'PUT' : 'POST';
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const place = await response.json();
+        showToast(placeId ? 'Place updated successfully.' : 'Place created successfully.', 'success');
+        setTimeout(() => {
+          window.location.href = `place.html?id=${encodeURIComponent(place.id)}`;
+        }, 900);
+      } else {
+        const err = await response.json().catch(() => ({}));
+        showToast(err.message || 'Failed to save place.', 'error');
+      }
+    } catch (error) {
+      showToast('Cannot reach the server.', 'error');
+    } finally {
+      setButtonLoading(submitBtn, false);
+    }
+  });
+}
+
+/* ============================================================
+   PAGE: ADMIN
+   ============================================================ */
+
+function renderAdminOverview(data) {
+  const stats = data.stats || {};
+  document.getElementById('admin-users-count').textContent = stats.users || 0;
+  document.getElementById('admin-places-count').textContent = stats.places || 0;
+  document.getElementById('admin-reviews-count').textContent = stats.reviews || 0;
+
+  const usersList = document.getElementById('admin-users-list');
+  const placesList = document.getElementById('admin-places-list');
+  const reviewsList = document.getElementById('admin-reviews-list');
+
+  usersList.innerHTML = (data.users || []).map((user) => `
+    <li>${escapeHtml(`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.name || 'User')} <span>${escapeHtml(user.email || '')}</span>${user.is_admin ? ' <strong>(admin)</strong>' : ''}</li>
+  `).join('');
+
+  placesList.innerHTML = (data.places || []).map((place) => `
+    <li>
+      <span>${escapeHtml(place.name)} — €${place.price}</span>
+      <a href="create_edit_place.html?id=${encodeURIComponent(place.id)}">Edit</a>
+    </li>
+  `).join('');
+
+  reviewsList.innerHTML = (data.reviews || []).map((review) => `
+    <li>
+      <span>${escapeHtml(review.user || 'Anonymous')} on place ${escapeHtml(review.place_id)}: ${escapeHtml(review.text || '')}</span>
+    </li>
+  `).join('');
+}
+
+async function initAdminPage() {
+  const panel = document.getElementById('admin-panel');
+  if (!panel) return;
+
+  const token = checkAuth();
+  let user = getCurrentUser();
+  if (!user) {
+    try {
+      user = await fetchCurrentUser(token);
+      saveCurrentUser(user);
+    } catch (error) {
+      panel.innerHTML = '<p class="empty-state">Please login again.</p>';
+      return;
+    }
+  }
+  if (!user || !user.is_admin) {
+    panel.innerHTML = '<p class="empty-state">Admin access required.</p>';
+    return;
+  }
+
+  try {
+    const [usersRes, placesRes] = await Promise.all([
+      fetch(apiV1('/admin/users'), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+      fetch(apiV1('/places/'), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+    ]);
+
+    if (usersRes.status === 403 || placesRes.status === 403) {
+      panel.innerHTML = '<p class="empty-state">Admin access required.</p>';
+      return;
+    }
+
+    if (!usersRes.ok || !placesRes.ok) {
+      throw new Error('Failed to load admin data.');
+    }
+
+    const users = await usersRes.json();
+    const places = (await placesRes.json()).map(normalizePlace);
+    const reviews = places.flatMap((place) => place.reviews || []);
+
+    renderAdminOverview({
+      stats: {
+        users: users.length,
+        places: places.length,
+        reviews: reviews.length
+      },
+      users,
+      places,
+      reviews
+    });
+  } catch (error) {
+    panel.innerHTML = '<p class="empty-state">Could not load admin data.</p>';
+  }
+}
+
+/* ============================================================
    ROUTER — detect which page we're on and init it
    ============================================================ */
 
@@ -625,4 +972,6 @@ document.addEventListener('DOMContentLoaded', () => {
   else if (path.endsWith('index.html') || path.endsWith('/') || path === '') initIndexPage();
   else if (path.endsWith('place.html')) initPlacePage();
   else if (path.endsWith('add_review.html')) initAddReviewPage();
+  else if (path.endsWith('create_edit_place.html')) initCreateEditPlacePage();
+  else if (path.endsWith('admin.html')) initAdminPage();
 });

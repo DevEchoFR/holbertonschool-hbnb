@@ -13,109 +13,56 @@
     <div class="header-inner">
       <a href="index.html" class="logo"><img src="images/logo.png" alt="hbnb" /></a>
       <nav>
-        <a href="index.html" class="active">Accueil</a>
-        <a href="#featured-stays">Logements</a>
-        <a href="#how-it-works">Publier</a>
+        <a href="index.html" class="active">Home</a>
+        <a href="#featured-stays">Stays</a>
+        <a href="create_edit_place.html">Host</a>
       </nav>
       <div class="header-actions">
-        <a href="signup.html" class="create-account-link">Créer un compte</a>
-        <a href="login.html" class="login-button" id="header-login-btn">Connexion</a>
+        <a href="admin.html" id="admin-link" class="create-account-link" style="display:none;">Admin</a>
+        <a href="signup.html" class="create-account-link">Create account</a>
+        <a href="login.html" class="login-button" id="header-login-btn">Login</a>
       </div>
     </div>
   </header>
 
   <main class="homepage-main">
     <section class="hero-section">
-      <div class="hero-pill">Plus de 2 logements disponibles</div>
-      <h1>Trouvez votre <span>séjour idéal</span></h1>
-      <p>Découvrez des hébergements uniques gérés par des hôtes passionnés du monde entier.</p>
+      <div class="hero-pill">2+ stays available now</div>
+      <h1>Find your <span>perfect stay</span></h1>
+      <p>Discover unique homes hosted by passionate people from around the world.</p>
 
       <form class="hero-search" id="home-search-form">
-        <input id="home-search" type="search" placeholder="Rechercher un logement, une ville ou un hôte..." aria-label="Rechercher un logement" />
-        <button type="submit" class="login-button">Chercher</button>
+        <input id="home-search" type="search" placeholder="Search for a stay, city, or host..." aria-label="Search for a stay" />
+        <button type="submit" class="login-button">Search</button>
       </form>
 
-      <a class="hero-cue" href="#featured-stays">Défiler</a>
+      <a class="hero-cue" href="#featured-stays">Scroll</a>
     </section>
 
-    <section class="stats-strip" aria-label="Statistiques principales">
-      <div class="stat-item"><strong>2+</strong><span>Logements</span></div>
+    <section class="stats-strip" aria-label="Key statistics">
+      <div class="stat-item"><strong>2+</strong><span>Stays</span></div>
       <div class="stat-item"><strong>45</strong><span>Destinations</span></div>
-      <div class="stat-item"><strong>89</strong><span>Hôtes</span></div>
-      <div class="stat-item"><strong>98%</strong><span>Avis positifs</span></div>
-    </section>
-
-    <section class="explore-section">
-      <div class="section-head section-head-center">
-        <div>
-          <p class="section-kicker">Explorez par type</p>
-          <h2>Chaque destination, un monde à découvrir</h2>
-        </div>
-      </div>
-
-      <div class="category-grid">
-        <article class="category-card category-card-blue">
-          <span class="category-icon">P</span>
-          <div>
-            <h3>Plage</h3>
-            <p>Vue mer et air salin</p>
-          </div>
-        </article>
-        <article class="category-card category-card-green">
-          <span class="category-icon">M</span>
-          <div>
-            <h3>Montagne</h3>
-            <p>Chalets et panoramas</p>
-          </div>
-        </article>
-        <article class="category-card category-card-purple">
-          <span class="category-icon">V</span>
-          <div>
-            <h3>Ville</h3>
-            <p>Au coeur de l'animation</p>
-          </div>
-        </article>
-        <article class="category-card category-card-emerald">
-          <span class="category-icon">N</span>
-          <div>
-            <h3>Nature</h3>
-            <p>Calme et grands espaces</p>
-          </div>
-        </article>
-        <article class="category-card category-card-amber">
-          <span class="category-icon">C</span>
-          <div>
-            <h3>Campagne</h3>
-            <p>Authenticité et silence</p>
-          </div>
-        </article>
-        <article class="category-card category-card-cyan">
-          <span class="category-icon">L</span>
-          <div>
-            <h3>Lac</h3>
-            <p>Reflets et escapades</p>
-          </div>
-        </article>
-      </div>
+      <div class="stat-item"><strong>89</strong><span>Hosts</span></div>
+      <div class="stat-item"><strong>98%</strong><span>Positive reviews</span></div>
     </section>
 
     <section class="featured-section" id="featured-stays">
       <div class="section-head">
         <div>
-          <p class="section-kicker">Sélection du moment</p>
-          <h2>Logements à la une</h2>
-          <p class="section-copy">Les meilleurs endroits sélectionnés pour vous.</p>
+          <p class="section-kicker">Top picks</p>
+          <h2>Featured stays</h2>
+          <p class="section-copy">Handpicked places you will love.</p>
         </div>
-        <a class="section-link" href="#featured-stays">Voir tout →</a>
+        <a class="section-link" href="#featured-stays">View all →</a>
       </div>
 
       <div class="filter-bar featured-toolbar">
-        <label for="price-filter">Filtrer par prix</label>
+        <label for="price-filter">Filter by price</label>
         <select id="price-filter">
-          <option value="All">Tous les prix</option>
-          <option value="100">Jusqu'à 100 €/nuit</option>
-          <option value="250">Jusqu'à 250 €/nuit</option>
-          <option value="500">Jusqu'à 500 €/nuit</option>
+          <option value="All">All prices</option>
+          <option value="100">Up to €100/night</option>
+          <option value="250">Up to €250/night</option>
+          <option value="500">Up to €500/night</option>
         </select>
         <span id="result-count"></span>
       </div>
@@ -145,31 +92,31 @@
     <section class="how-section" id="how-it-works">
       <div class="section-head section-head-center dark-head">
         <div>
-          <p class="section-kicker section-kicker-light">Comment ça fonctionne</p>
-          <h2>Simple, rapide et sécurisé</h2>
+          <p class="section-kicker section-kicker-light">How it works</p>
+          <h2>Simple, fast, and secure</h2>
         </div>
       </div>
 
       <div class="steps-grid">
         <article class="step-card">
           <span class="step-number">1</span>
-          <h3>Explorez</h3>
-          <p>Découvrez des milliers de logements uniques à travers le monde.</p>
+          <h3>Explore</h3>
+          <p>Browse thousands of unique homes around the world.</p>
         </article>
         <article class="step-card">
           <span class="step-number">2</span>
-          <h3>Réservez</h3>
-          <p>Choisissez vos dates et confirmez votre séjour en quelques clics.</p>
+          <h3>Book</h3>
+          <p>Pick your dates and confirm your stay in just a few clicks.</p>
         </article>
         <article class="step-card">
           <span class="step-number">3</span>
-          <h3>Voyagez</h3>
-          <p>Profitez de votre hébergement et créez des souvenirs inoubliables.</p>
+          <h3>Travel</h3>
+          <p>Enjoy your stay and create unforgettable memories.</p>
         </article>
       </div>
 
       <div class="how-cta-wrap">
-        <a class="login-button how-cta" href="signup.html">Commencer l'aventure</a>
+        <a class="login-button how-cta" href="signup.html">Start your journey</a>
       </div>
     </section>
   </main>

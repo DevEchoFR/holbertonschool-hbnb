@@ -2,7 +2,11 @@
 
 ## Description
 
-Part 4 is the frontend version of HBnB. It provides a simple browser interface for browsing places, viewing place details, logging in, and submitting reviews. The folder also includes a lightweight Flask app that serves example data and JWT-based login for local testing.
+Part 4 is the frontend client for HBnB. It provides a browser interface for browsing places, viewing place details, logging in, submitting reviews, creating/editing places, and opening an admin dashboard.
+
+Primary backend for this frontend: `part3/` API (`/api/v1/...`).
+
+`part4/app.py` remains available as a lightweight local mock backend, but the recommended setup is to run Part 3 as the API/backend.
 
 ## Main Files
 
@@ -12,7 +16,9 @@ Part 4 is the frontend version of HBnB. It provides a simple browser interface f
 - `add_review.html` - review submission page
 - `scripts.js` - frontend logic for authentication, fetching data, filtering, and UI updates
 - `styles.css` - styling for the pages
-- `app.py` - local Flask backend used by the frontend during development
+- `app.py` - optional local mock Flask backend
+- `create_edit_place.html` - create/edit listing form
+- `admin.html` - admin dashboard page
 
 ## Features
 
@@ -36,10 +42,24 @@ pip install flask flask-jwt-extended flask-cors
 ### 2. Start the Flask app
 
 ```bash
-python app.py
+# Recommended: run Part 3 API backend
+cd ../part3
+pip install -r requirements.txt
+python run.py
+
+# In a second terminal, run the Part 4 static frontend
+cd ../part4
+python -m http.server 3000 --bind 127.0.0.1
 ```
 
-The app runs on `http://localhost:5000`.
+- Part 3 API runs on `http://localhost:5000`
+- Part 4 frontend runs on `http://127.0.0.1:3000`
+
+Optional alternative (mock backend):
+
+```bash
+python app.py
+```
 
 Optional environment variables:
 
@@ -48,7 +68,7 @@ Optional environment variables:
 
 ## Usage Notes
 
-- The frontend expects the backend to be available at `http://localhost:5000`.
+- The frontend expects backend API endpoints under `http://localhost:5000/api/v1`.
 - Example login credentials are printed when the Flask app starts.
 - Data in `app.py` is stored in memory, so it resets when the server stops.
 

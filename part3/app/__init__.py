@@ -4,6 +4,7 @@ from flask_restx import Api
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 
 # Instantiate Bcrypt for password hashing
 bcrypt = Bcrypt()
@@ -13,6 +14,64 @@ jwt = JWTManager()
 
 # Instantiate SQLAlchemy for ORM/database operations
 db = SQLAlchemy()
+
+
+def _seed_demo_data():
+    """Seed demo data for local development when the database is empty."""
+    from app.services.facade import facade
+
+    if facade.list_users():
+        return
+
+    # Users
+    alice = facade.create_user({
+        "first_name": "Alice",
+        "last_name": "Admin",
+        "email": "alice@example.com",
+        "password": "AliceDemo!2026",
+        "is_admin": True,
+    })
+    bob = facade.create_user({
+        "first_name": "Bob",
+        "last_name": "Guest",
+        "email": "bob@example.com",
+        "password": "BobDemo!2026",
+        "is_admin": False,
+    })
+
+    # Amenities
+    wifi = facade.create_amenity({"name": "WiFi"})
+    kitchen = facade.create_amenity({"name": "Kitchen"})
+    pool = facade.create_amenity({"name": "Pool"})
+
+    # Places
+    lisbon_place = facade.create_place({
+        "title": "Cozy Studio in Lisbon",
+        "description": "A bright studio in a lively district with scenic viewpoints nearby.",
+        "price": 175,
+        "latitude": 38.7223,
+        "longitude": -9.1393,
+        "owner_id": alice.id,
+        "amenity_ids": [wifi.id, kitchen.id],
+    })
+
+    facade.create_place({
+        "title": "Modern Loft in Barcelona",
+        "description": "A modern loft close to restaurants and waterfront walks.",
+        "price": 125,
+        "latitude": 41.3874,
+        "longitude": 2.1686,
+        "owner_id": bob.id,
+        "amenity_ids": [wifi.id, pool.id],
+    })
+
+    # Review
+    facade.create_review({
+        "text": "Great location and very comfortable stay.",
+        "rating": 5,
+        "user_id": bob.id,
+        "place_id": lisbon_place.id,
+    })
 
 
 def create_app(config_class=None):
@@ -30,6 +89,9 @@ def create_app(config_class=None):
         config_class = DevelopmentConfig
     
     app = Flask(__name__)
+
+    # Allow local frontend apps (e.g., part4 static server) to call the API.
+    CORS(app)
     
     # Apply the configuration object to the app
     app.config.from_object(config_class)
@@ -72,5 +134,7 @@ def create_app(config_class=None):
     with app.app_context():
         from app import models as _models  # noqa: F401
         db.create_all()
+        if not app.config.get("TESTING", False):
+            _seed_demo_data()
 
     return app

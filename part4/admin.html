@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — HBnB</title>
+  <link rel="icon" type="image/png" href="images/icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <a href="index.html" class="logo"><img src="images/logo.png" alt="hbnb" /></a>
+      <nav>
+        <a href="index.html">Home</a>
+        <a href="index.html#featured-stays">Stays</a>
+        <a href="create_edit_place.html">Host</a>
+      </nav>
+      <div class="header-actions">
+        <a href="admin.html" id="admin-link" class="create-account-link" style="display:none;">Admin</a>
+        <a href="signup.html" class="create-account-link">Create account</a>
+        <a href="login.html" class="login-button" id="header-login-btn">Login</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="breadcrumb">
+      <a href="index.html">← Back to home</a>
+      <span>›</span>
+      <span>Admin dashboard</span>
+    </div>
+
+    <section id="admin-panel" class="admin-panel">
+      <div class="admin-stats">
+        <article class="admin-stat-card">
+          <h3>Users</h3>
+          <strong id="admin-users-count">0</strong>
+        </article>
+        <article class="admin-stat-card">
+          <h3>Places</h3>
+          <strong id="admin-places-count">0</strong>
+        </article>
+        <article class="admin-stat-card">
+          <h3>Reviews</h3>
+          <strong id="admin-reviews-count">0</strong>
+        </article>
+      </div>
+
+      <div class="admin-grid">
+        <section class="admin-card">
+          <h3>Users</h3>
+          <ul id="admin-users-list" class="admin-list"></ul>
+        </section>
+
+        <section class="admin-card">
+          <h3>Places</h3>
+          <ul id="admin-places-list" class="admin-list"></ul>
+        </section>
+
+        <section class="admin-card">
+          <h3>Recent reviews</h3>
+          <ul id="admin-reviews-list" class="admin-list"></ul>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 HBnB — Holberton School Project</p>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+  <script src="scripts.js"></script>
+</body>
+</html>

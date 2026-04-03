@@ -13,6 +13,7 @@ login_model = ns.model("Login", {
 
 token_response_model = ns.model("TokenResponse", {
     "access_token": fields.String(description="JWT access token"),
+    "user": fields.Raw(description="Authenticated user details"),
 })
 
 
@@ -49,8 +50,8 @@ class Login(Resource):
             additional_claims={"is_admin": user.is_admin}
         )
         
-        # Step 4: Return the token
-        return {"access_token": access_token}, 200
+        # Step 4: Return the token and current user details
+        return {"access_token": access_token, "user": user.to_dict()}, 200
 
 
 # ------------------------------------------------------------------
@@ -73,3 +74,18 @@ class ProtectedResource(Resource):
             "message": f"Hello, user {current_user_id}",
             "is_admin": is_admin
         }, 200
+
+
+@ns.route("/me")
+class CurrentUser(Resource):
+
+    @jwt_required()
+    @ns.response(200, "Success")
+    @ns.response(401, "Unauthorized")
+    def get(self):
+        """Return the currently authenticated user profile."""
+        current_user_id = get_jwt_identity()
+        user = facade.get_user(current_user_id)
+        if user is None:
+            return {"error": "User not found"}, 404
+        return user.to_dict(), 200
