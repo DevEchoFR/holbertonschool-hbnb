@@ -220,6 +220,21 @@ function initIndexPage() {
   if (filter) {
     filter.addEventListener('change', applyPriceFilter);
   }
+
+  const searchForm = document.getElementById('home-search-form');
+  const searchInput = document.getElementById('home-search');
+
+  if (searchForm) {
+    searchForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      applyHomepageFilters();
+      document.getElementById('featured-stays')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', applyHomepageFilters);
+  }
 }
 
 async function fetchPlaces(token) {
@@ -237,7 +252,7 @@ async function fetchPlaces(token) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     allPlaces = await response.json();
-    displayPlaces(allPlaces);
+    applyHomepageFilters();
   } catch (error) {
     console.error('fetchPlaces:', error);
     document.getElementById('places-list').innerHTML = `
@@ -247,6 +262,32 @@ async function fetchPlaces(token) {
         <p>Make sure the backend is running at <strong>${API_BASE}</strong></p>
       </div>`;
   }
+}
+
+function applyHomepageFilters() {
+  const maxPrice = document.getElementById('price-filter')?.value || 'All';
+  const query = document.getElementById('home-search')?.value.trim().toLowerCase() || '';
+
+  const filtered = allPlaces.filter((place) => {
+    const price = Number(place.price || 0);
+    const priceMatches = maxPrice === 'All' || price <= Number(maxPrice);
+
+    const searchableText = [
+      place.name,
+      place.description,
+      place.location,
+      place.host,
+      ...(place.amenities || [])
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    const queryMatches = !query || searchableText.includes(query);
+    return priceMatches && queryMatches;
+  });
+
+  displayPlaces(filtered);
 }
 
 function displayPlaces(places) {
@@ -304,19 +345,7 @@ function displayPlaces(places) {
 }
 
 function applyPriceFilter() {
-  const maxPrice = document.getElementById('price-filter').value;
-  const cards    = document.querySelectorAll('.place-card');
-  let visible    = 0;
-
-  cards.forEach(card => {
-    const price = parseFloat(card.dataset.price);
-    const show  = maxPrice === 'All' || price <= parseFloat(maxPrice);
-    card.style.display = show ? '' : 'none';
-    if (show) visible++;
-  });
-
-  const countEl = document.getElementById('result-count');
-  if (countEl) countEl.textContent = `${visible} place${visible !== 1 ? 's' : ''}`;
+  applyHomepageFilters();
 }
 
 /* ============================================================
