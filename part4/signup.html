@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up — HBnB</title>
+  <link rel="icon" type="image/png" href="images/icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <a href="index.html" class="logo"><img src="images/logo.png" alt="hbnb" /></a>
+      <nav>
+        <a href="index.html">Home</a>
+        <a href="index.html">Places</a>
+      </nav>
+      <div class="header-actions">
+        <a href="signup.html" class="create-account-link">Create Account</a>
+        <a href="login.html" class="login-button">Log In</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="login-page-wrapper">
+      <section class="login-showcase" aria-hidden="true">
+        <div class="showcase-badge">Join HBnB Community</div>
+        <h1 class="showcase-title">Find your perfect stay.</h1>
+        <p class="showcase-copy">
+          Create an account to save favorites, book stays, and share your experience with our community.
+        </p>
+        <div class="showcase-cards">
+          <article class="showcase-card">
+            <p class="showcase-label">Easy booking</p>
+            <h3>Hassle-free</h3>
+            <p>Book your dream stay in minutes.</p>
+          </article>
+          <article class="showcase-card">
+            <p class="showcase-label">Great reviews</p>
+            <h3>Trust & Safety</h3>
+            <p>Verified stays and reviews by real travelers.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="form-card login-card">
+        <div class="login-card-brand">
+          <img src="images/logo.png" alt="hbnb" />
+          <span>Welcome to HBnB</span>
+        </div>
+
+        <h2>Create your account</h2>
+        <p class="subtitle">Join thousands of travelers finding their next adventure.</p>
+
+        <form id="signup-form">
+          <div class="form-group">
+            <label for="name">Full name</label>
+            <input type="text" id="name" name="name" required />
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email address</label>
+            <input type="email" id="email" name="email" required />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required />
+          </div>
+
+          <div class="form-group">
+            <label for="password-confirm">Confirm password</label>
+            <input type="password" id="password-confirm" name="password-confirm" required />
+          </div>
+
+          <button type="submit" id="signup-btn" class="primary-button">Create Account</button>
+        </form>
+
+        <div class="form-divider">
+          <span>Already have an account?</span>
+        </div>
+
+        <a href="login.html" class="secondary-button">Sign in instead</a>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2024 HBnB — All rights reserved</p>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+  <script src="scripts.js"></script>
+</body>
+</html>

@@ -117,6 +117,31 @@ def login():
     return jsonify({'access_token': token, 'user': {'id': user['id'], 'name': user['name']}}), 200
 
 
+@app.route('/signup', methods=['POST'])
+def signup():
+    data = request.get_json(silent=True) or {}
+    name     = data.get('name', '').strip()
+    email    = data.get('email', '').strip()
+    password = data.get('password', '')
+
+    if not name or not email or not password:
+        return jsonify({'message': 'Name, email, and password are required.'}), 400
+
+    if find_user(email):
+        return jsonify({'message': 'Email already registered.'}), 409
+
+    new_user = {
+        'id': str(uuid.uuid4()),
+        'name': name,
+        'email': email,
+        'password': password
+    }
+    users.append(new_user)
+
+    token = create_access_token(identity=new_user['id'])
+    return jsonify({'access_token': token, 'user': {'id': new_user['id'], 'name': new_user['name']}}), 201
+
+
 @app.route('/places', methods=['GET'])
 def get_places():
     # Return all places (public endpoint — add @jwt_required() to restrict)

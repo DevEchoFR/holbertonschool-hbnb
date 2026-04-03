@@ -321,12 +321,49 @@ footer {
   color: #fff;
 }
 .details-button:hover, .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.primary-button {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+  background: var(--accent);
+  color: #fff;
+  width: 100%;
+  justify-content: center;
+}
+.primary-button:hover { background: var(--accent-hover); transform: translateY(-1px); }
 .btn-secondary {
   background: var(--surface-alt);
   color: var(--text);
   border: 1px solid var(--border);
 }
 .btn-secondary:hover { background: var(--border); }
+.secondary-button {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+  text-decoration: none;
+}
+.secondary-button:hover { background: var(--surface-alt); border-color: var(--accent); color: var(--accent); }
 .btn-outline {
   background: transparent;
   color: var(--accent);

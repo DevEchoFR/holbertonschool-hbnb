@@ -143,6 +143,67 @@ async function handleLogin(e) {
 }
 
 /* ============================================================
+   PAGE: SIGNUP
+   ============================================================ */
+
+function initSignupPage() {
+  const form = document.getElementById('signup-form');
+  if (!form) return;
+
+  // Redirect if already logged in
+  if (getToken()) {
+    window.location.href = 'index.html';
+    return;
+  }
+
+  form.addEventListener('submit', handleSignup);
+}
+
+async function handleSignup(e) {
+  e.preventDefault();
+
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const passwordConfirm = document.getElementById('password-confirm').value;
+  const btn = document.getElementById('signup-btn');
+
+  if (!name || !email || !password || !passwordConfirm) {
+    showToast('Please fill in all fields.', 'error');
+    return;
+  }
+
+  if (password !== passwordConfirm) {
+    showToast('Passwords do not match.', 'error');
+    return;
+  }
+
+  setButtonLoading(btn, true);
+
+  try {
+    const response = await fetch(`${API_BASE}/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      setCookie('token', data.access_token);
+      showToast('Account created! Redirecting…', 'success');
+      setTimeout(() => { window.location.href = 'index.html'; }, 800);
+    } else {
+      const err = await response.json().catch(() => ({}));
+      showToast(err.message || 'Signup failed. Please try again.', 'error');
+      setButtonLoading(btn, false);
+    }
+  } catch (error) {
+    showToast('Cannot reach the server. Is the backend running?', 'error');
+    setButtonLoading(btn, false);
+  }
+}
+
+/* ============================================================
    PAGE: INDEX (PLACES LIST)
    ============================================================ */
 
@@ -523,7 +584,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const path = window.location.pathname;
 
-  if (path.endsWith('login.html'))      initLoginPage();
+  if (path.endsWith('signup.html'))     initSignupPage();
+  else if (path.endsWith('login.html'))      initLoginPage();
   else if (path.endsWith('index.html') || path.endsWith('/') || path === '') initIndexPage();
   else if (path.endsWith('place.html')) initPlacePage();
   else if (path.endsWith('add_review.html')) initAddReviewPage();
