@@ -4,12 +4,13 @@ Run: python app.py (from part4/Frontend)
 Note: Backend must be running on http://localhost:5000
 """
 
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, abort
 from flask_cors import CORS
+from urllib.parse import unquote
+import os
 
 app = Flask(__name__, 
-            static_folder='.',
-            static_url_path='',
+            static_folder=None,
             template_folder='.')
 
 # Allow CORS for API calls to backend
@@ -29,7 +30,21 @@ def serve_static(filename):
     if filename.endswith('.html'):
         return send_from_directory('.', filename)
     elif filename.startswith('images/'):
-        return send_from_directory('Images_Room', filename.replace('images/', ''))
+        # Decode the URL-encoded filename (e.g., %20 → space)
+        decoded_filename = unquote(filename.replace('images/', ''))
+        
+        # First try to find in Images_Room (room photos)
+        room_image_path = os.path.join('Images_Room', decoded_filename)
+        if os.path.exists(room_image_path):
+            return send_from_directory('Images_Room', decoded_filename)
+        
+        # Fall back to root images folder (icons, logos, etc.)
+        root_image_path = os.path.join('images', decoded_filename)
+        if os.path.exists(root_image_path):
+            return send_from_directory('images', decoded_filename)
+        
+        # Not found in either location
+        abort(404)
     else:
         return send_from_directory('.', filename)
 

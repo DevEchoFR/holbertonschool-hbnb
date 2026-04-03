@@ -695,6 +695,38 @@ function amenityTag(name) {
   return `<span class="amenity-tag">${img}${escapeHtml(name)}</span>`;
 }
 
+const ROOM_IMAGES = [
+  {
+    keywords: ['budget room', 'latin quarter'],
+    file: 'Budget Room in the Latin Quarter.jpg',
+  },
+  {
+    keywords: ['cosy studio', 'cozy studio', 'montmartre'],
+    file: 'Cosy Studio in Montmartre.jpg',
+  },
+  {
+    keywords: ['charming provence farmhouse', 'provence farmhouse', 'farmhouse'],
+    file: 'Charming Provence Farmhouse.jpg',
+  },
+  {
+    keywords: ['modern loft', 'eiffel tower', 'loft'],
+    file: 'Modern Loft near the Eiffel Tower.jpg',
+  },
+];
+
+function roomImageUrl(fileName) {
+  return `images/${encodeURI(fileName)}`;
+}
+
+function fallbackRoomImage(seedText) {
+  const normalized = String(seedText || '').toLowerCase();
+  let hash = 0;
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash = (hash * 31 + normalized.charCodeAt(index)) >>> 0;
+  }
+  return roomImageUrl(ROOM_IMAGES[hash % ROOM_IMAGES.length].file);
+}
+
 function getPlaceImage(place) {
   if (place && place.image) {
     if (place.image.startsWith('/images/')) {
@@ -703,27 +735,25 @@ function getPlaceImage(place) {
     return place.image;
   }
 
-  const title = escapeHtml((place && place.name) ? place.name : 'HBnB');
-  const location = escapeHtml((place && place.location) ? place.location : 'Stay');
-  const svg = `
-    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900' role='img' aria-label='${title}'>
-      <defs>
-        <linearGradient id='bg' x1='0%' y1='0%' x2='100%' y2='100%'>
-          <stop offset='0%' stop-color='#1F4D4F' />
-          <stop offset='100%' stop-color='#E07A5F' />
-        </linearGradient>
-      </defs>
-      <rect width='1200' height='900' fill='url(#bg)' />
-      <circle cx='930' cy='180' r='190' fill='rgba(255,255,255,0.18)' />
-      <circle cx='220' cy='720' r='220' fill='rgba(255,255,255,0.10)' />
-      <rect x='70' y='110' rx='999' ry='999' width='220' height='58' fill='rgba(255,255,255,0.18)' />
-      <text x='110' y='150' fill='white' font-family='Arial, sans-serif' font-size='28' font-weight='700'>HBnB stay</text>
-      <text x='72' y='752' fill='white' font-family='Georgia, serif' font-size='88' font-weight='700'>${title}</text>
-      <text x='74' y='818' fill='rgba(255,255,255,0.88)' font-family='Arial, sans-serif' font-size='34' letter-spacing='4'>${location}</text>
-    </svg>
-  `.trim();
+  const lookupText = [
+    place && place.name,
+    place && place.title,
+    place && place.location,
+    place && place.description,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
 
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  const matchedRoom = ROOM_IMAGES.find((roomImage) =>
+    roomImage.keywords.some((keyword) => lookupText.includes(keyword))
+  );
+
+  if (matchedRoom) {
+    return roomImageUrl(matchedRoom.file);
+  }
+
+  return fallbackRoomImage(lookupText || (place && place.id) || 'hbnb');
 }
 
 
@@ -766,20 +796,26 @@ function fillPlaceForm(place) {
   document.getElementById('place-amenities').value = (place.amenity_ids || []).join(', ');
 }
 
-function collectPlaceFormData() {
+function collectPlaceFormData(includeOwnerId = true) {
   const currentUser = getCurrentUser();
-  return {
+  const payload = {
     title: document.getElementById('place-name').value.trim(),
     description: document.getElementById('place-description').value.trim(),
     price: Number(document.getElementById('place-price').value),
     latitude: Number(document.getElementById('place-latitude').value),
     longitude: Number(document.getElementById('place-longitude').value),
-    owner_id: currentUser ? currentUser.id : '',
     amenity_ids: parseAmenitiesInput(document.getElementById('place-amenities').value)
   };
+
+  if (includeOwnerId) {
+    payload.owner_id = currentUser ? currentUser.id : '';
+  }
+
+  return payload;
 }
 
-function validatePlacePayload(payload) {
+function validatePlacePayload(payload, options = {}) {
+  const requireOwnerId = options.requireOwnerId !== false;
   if (!payload.title || !payload.description) {
     return 'Name and description are required.';
   }
@@ -789,7 +825,7 @@ function validatePlacePayload(payload) {
   if (Number.isNaN(payload.latitude) || Number.isNaN(payload.longitude)) {
     return 'Latitude and longitude are required.';
   }
-  if (!payload.owner_id) {
+  if (requireOwnerId && !payload.owner_id) {
     return 'You must be logged in to create a place.';
   }
   return '';
@@ -800,9 +836,11 @@ async function initCreateEditPlacePage() {
   if (!form) return;
 
   const token = checkAuth();
-  if (!getCurrentUser()) {
+  let currentUser = getCurrentUser();
+  if (!currentUser || !currentUser.id) {
     try {
-      saveCurrentUser(await fetchCurrentUser(token));
+      currentUser = await fetchCurrentUser(token);
+      saveCurrentUser(currentUser);
     } catch (error) {
       showToast('Please login again to continue.', 'error');
       clearAuthState();
@@ -810,7 +848,10 @@ async function initCreateEditPlacePage() {
       return;
     }
   }
-  const placeId = getQueryParam('id');
+    const rawPlaceId = getQueryParam('id') || getQueryParam('place_id');
+    const placeId = rawPlaceId && !['undefined', 'null', ''].includes(rawPlaceId)
+      ? rawPlaceId
+      : '';
   const heading = document.getElementById('place-form-title');
   const breadcrumb = document.getElementById('place-form-breadcrumb');
   const submitBtn = document.getElementById('place-submit-btn');
@@ -829,8 +870,9 @@ async function initCreateEditPlacePage() {
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const payload = collectPlaceFormData();
-    const validationError = validatePlacePayload(payload);
+    const isEdit = Boolean(placeId);
+    const payload = collectPlaceFormData(!isEdit);
+    const validationError = validatePlacePayload(payload, { requireOwnerId: !isEdit });
     if (validationError) {
       showToast(validationError, 'error');
       return;
@@ -886,12 +928,19 @@ function renderAdminOverview(data) {
     <li>${escapeHtml(`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.name || 'User')} <span>${escapeHtml(user.email || '')}</span>${user.is_admin ? ' <strong>(admin)</strong>' : ''}</li>
   `).join('');
 
-  placesList.innerHTML = (data.places || []).map((place) => `
+  placesList.innerHTML = (data.places || []).map((place) => {
+    const placeId = place.id || place.place_id || '';
+    const editLink = placeId
+      ? `<a href="create_edit_place.html?id=${encodeURIComponent(placeId)}&place_id=${encodeURIComponent(placeId)}">Edit</a>`
+      : '<span class="muted">Edit unavailable</span>';
+
+    return `
     <li>
       <span>${escapeHtml(place.name)} — €${place.price}</span>
-      <a href="create_edit_place.html?id=${encodeURIComponent(place.id)}">Edit</a>
+      ${editLink}
     </li>
-  `).join('');
+  `;
+  }).join('');
 
   reviewsList.innerHTML = (data.reviews || []).map((review) => `
     <li>

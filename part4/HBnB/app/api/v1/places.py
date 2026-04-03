@@ -86,6 +86,9 @@ class PlaceList(Resource):
 
         if not claims.get("is_admin", False):
             data["owner_id"] = current_user_id
+        elif not data.get("owner_id"):
+            # Fall back to current admin user when owner_id is omitted.
+            data["owner_id"] = current_user_id
         try:
             place = facade.create_place(data)
         except (ValueError, KeyError) as e:
