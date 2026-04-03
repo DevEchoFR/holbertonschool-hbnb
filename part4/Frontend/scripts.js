@@ -235,6 +235,8 @@ async function handleSignup(e) {
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   const passwordConfirm = document.getElementById('password-confirm').value;
+  const isAdminCheckbox = document.getElementById('is-admin');
+  const isAdmin = isAdminCheckbox ? isAdminCheckbox.checked : false;
   const btn = document.getElementById('signup-btn');
 
   if (!name || !email || !password || !passwordConfirm) {
@@ -253,15 +255,22 @@ async function handleSignup(e) {
   setButtonLoading(btn, true);
 
   try {
+    const payload = {
+      first_name: firstName || 'User',
+      last_name: lastName,
+      email,
+      password
+    };
+
+    // Include is_admin flag if the checkbox is checked
+    if (isAdmin) {
+      payload.is_admin = true;
+    }
+
     const response = await fetch(apiV1('/users/'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        first_name: firstName || 'User',
-        last_name: lastName,
-        email,
-        password
-      })
+      body: JSON.stringify(payload)
     });
 
     if (response.ok || response.status === 201) {
@@ -284,7 +293,8 @@ async function handleSignup(e) {
         saveCurrentUser(profile);
       }
 
-      showToast('Account created! Redirecting…', 'success');
+      const accountType = isAdmin ? 'admin account' : 'account';
+      showToast(`${accountType} created! Redirecting…`, 'success');
       setTimeout(() => { window.location.href = 'index.html'; }, 800);
     } else {
       const err = await response.json().catch(() => ({}));
