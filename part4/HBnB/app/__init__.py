@@ -114,12 +114,22 @@ def create_app(config_class=None):
     from app.api.v1.admin import ns as admin_ns
     
     # Set up the API with Swagger documentation
+    authorizations = {
+        "Bearer": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "Authorization",
+            "description": "Paste your JWT token as: Bearer &lt;token&gt;",
+        }
+    }
     api = Api(
         app,
         version="1.0",
         title="HBnB API",
         description="HBnB Application API",
         doc="/",
+        authorizations=authorizations,
+        security="Bearer",
     )
 
     # Register each namespace (group of related endpoints)

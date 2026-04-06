@@ -4,7 +4,9 @@ Run:  python tests/test_reviews.py
 
 Reviews need an existing User and Place, so we create them first.
 """
-from part3.HBnB.tests.helpers import check, post, post_auth, get, put_auth, delete_auth, summary
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from tests.helpers import check, post, post_auth, get, put_auth, delete_auth, summary, create_admin_user
 
 print("\n--- Review Tests ---")
 
@@ -23,14 +25,8 @@ _, owner_login = post("/api/v1/auth/login", {
 })
 OWNER_TOKEN = owner_login["access_token"]
 
-# create admin to manage amenities (if needed) and privileged delete checks
-post("/api/v1/users/", {
-    "first_name": "Admin",
-    "last_name": "Reviews",
-    "email": "admin_reviews@example.com",
-    "password": "adminpass",
-    "is_admin": True,
-})
+# create admin for privileged delete checks
+create_admin_user("Admin", "Reviews", "admin_reviews@example.com", "adminpass")
 _, admin_login = post("/api/v1/auth/login", {
     "email": "admin_reviews@example.com",
     "password": "adminpass",

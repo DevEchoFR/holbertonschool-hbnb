@@ -4,7 +4,9 @@ Run:  python tests/test_places.py
 
 Places need an existing User and Amenity, so we create them first.
 """
-from part3.HBnB.tests.helpers import check, post, post_auth, get, put_auth, summary
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from tests.helpers import check, post, post_auth, get, put_auth, delete_auth, summary, create_admin_user
 
 print("\n--- Place Tests ---")
 
@@ -24,13 +26,7 @@ _, owner_login = post("/api/v1/auth/login", {
 OWNER_TOKEN = owner_login["access_token"]
 
 # create admin to create amenity
-post("/api/v1/users/", {
-    "first_name": "Admin",
-    "last_name": "Places",
-    "email": "admin_places@example.com",
-    "password": "adminpass",
-    "is_admin": True,
-})
+create_admin_user("Admin", "Places", "admin_places@example.com", "adminpass")
 _, admin_login = post("/api/v1/auth/login", {
     "email": "admin_places@example.com",
     "password": "adminpass",
@@ -149,5 +145,35 @@ check("GET with fake id returns 404", status == 404)
 
 status, _ = put_auth("/api/v1/places/fake-id-000", {"title": "Ghost"}, OWNER_TOKEN)
 check("PUT with fake id returns 404", status == 404)
+
+# --- delete ------------------------------------------------------------------
+# non-owner cannot delete
+_, other_owner = post("/api/v1/users/", {
+    "first_name": "Other",
+    "last_name": "User",
+    "email": "other@example.com",
+    "password": "pass",
+})
+_, other_login = post("/api/v1/auth/login", {"email": "other@example.com", "password": "pass"})
+OTHER_TOKEN = other_login["access_token"]
+
+status, _ = delete_auth(f"/api/v1/places/{PLACE_ID}", OTHER_TOKEN)
+check("DELETE by non-owner returns 403", status == 403)
+
+# owner can delete
+status, data = delete_auth(f"/api/v1/places/{PLACE_ID}", OWNER_TOKEN)
+check("DELETE /places/<id> by owner returns 200", status == 200)
+
+# place must be gone
+status, _ = get(f"/api/v1/places/{PLACE_ID}")
+check("GET deleted place returns 404", status == 404)
+
+# second delete returns 404
+status, _ = delete_auth(f"/api/v1/places/{PLACE_ID}", OWNER_TOKEN)
+check("DELETE already-deleted place returns 404", status == 404)
+
+# delete fake id
+status, _ = delete_auth("/api/v1/places/fake-id-000", ADMIN_TOKEN)
+check("DELETE with fake id returns 404", status == 404)
 
 summary()

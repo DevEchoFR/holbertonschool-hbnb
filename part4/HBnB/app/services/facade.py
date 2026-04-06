@@ -47,6 +47,9 @@ class HBnBFacade:
     def update_user(self, user_id, data):
         return self.repo.update("User", user_id, data)
 
+    def delete_user(self, user_id):
+        return self.repo.delete("User", user_id)
+
     # ------------------------------------------------------------------
     # Amenities
     # ------------------------------------------------------------------
@@ -98,6 +101,9 @@ class HBnBFacade:
         place.amenities = amenities
         self.repo.add(place)
 
+        # Refresh so relationships are reloaded cleanly after the commit
+        # (SQLAlchemy expires all attributes on commit by default).
+        db.session.refresh(place)
         return place
 
     def get_place(self, place_id):
@@ -105,10 +111,10 @@ class HBnBFacade:
         place = self.repo.get("Place", place_id)
         if place is None:
             return None
-        return self._extend_place(place)
+        return self.extend_place(place)
 
     def list_places(self):
-        return [self._extend_place(p) for p in self.repo.get_all("Place")]
+        return [self.extend_place(p) for p in self.repo.get_all("Place")]
 
     def update_place(self, place_id, data):
         place = self.repo.get("Place", place_id)
@@ -130,9 +136,12 @@ class HBnBFacade:
 
         place.update(data)
         db.session.commit()
-        return self._extend_place(place)
+        # Refresh after commit so relationships (amenities, reviews) are
+        # reloaded from the DB rather than served from the expired identity map.
+        db.session.refresh(place)
+        return self.extend_place(place)
 
-    def _extend_place(self, place):
+    def extend_place(self, place):
         """Add owner details, amenity details and reviews to a place dict."""
         d = place.to_dict()
 
@@ -199,6 +208,9 @@ class HBnBFacade:
 
     def delete_review(self, review_id):
         return self.repo.delete("Review", review_id)
+
+    def delete_place(self, place_id):
+        return self.repo.delete("Place", place_id)
 
     def get_place_model(self, place_id):
         """Get a place ORM model (used for authorization checks)."""

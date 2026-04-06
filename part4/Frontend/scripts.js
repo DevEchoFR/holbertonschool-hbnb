@@ -2,7 +2,31 @@
    scripts.js — HBnB Frontend Logic
    ============================================================ */
 
-const API_BASE = 'http://localhost:5000';
+// Detect the correct backend URL regardless of environment:
+//
+//  Local (no forwarding)  → frontend :5001, backend :5000
+//  VS Code port forwarding → frontend forwarded to :5002, backend forwarded to :5001
+//  GitHub Codespaces URL  → frontend xxx-5001.app.github.dev,
+//                            backend  xxx-5000.app.github.dev
+//
+// Rule: backend port = frontend port - 1 (gap is always 1).
+const API_BASE = (() => {
+  const { hostname, port, protocol } = window.location;
+
+  // Codespace / Remote tunnel public URL (*.app.github.dev, *.github.dev, etc.)
+  if (hostname.includes('.github.dev') || hostname.includes('.githubpreview.dev')) {
+    return window.location.origin.replace(/-(\d+)(\.app\.github\.dev|\.githubpreview\.dev)/, (_, p, suffix) => `-${parseInt(p, 10) - 1}${suffix}`);
+  }
+
+  // localhost / 127.0.0.1 with VS Code port forwarding (port > 5000)
+  const frontendPort = parseInt(port || '80', 10);
+  if (frontendPort > 5000) {
+    return `${protocol}//${hostname}:${frontendPort - 1}`;
+  }
+
+  // Plain local dev (frontend served directly from disk or port 5001 without shift)
+  return 'http://localhost:5000';
+})();
 const API_V1_BASE = `${API_BASE}/api/v1`;
 
 function apiV1(path) {
@@ -235,8 +259,6 @@ async function handleSignup(e) {
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   const passwordConfirm = document.getElementById('password-confirm').value;
-  const isAdminCheckbox = document.getElementById('is-admin');
-  const isAdmin = isAdminCheckbox ? isAdminCheckbox.checked : false;
   const btn = document.getElementById('signup-btn');
 
   if (!name || !email || !password || !passwordConfirm) {
@@ -261,11 +283,6 @@ async function handleSignup(e) {
       email,
       password
     };
-
-    // Include is_admin flag if the checkbox is checked
-    if (isAdmin) {
-      payload.is_admin = true;
-    }
 
     const response = await fetch(apiV1('/users/'), {
       method: 'POST',
@@ -293,8 +310,7 @@ async function handleSignup(e) {
         saveCurrentUser(profile);
       }
 
-      const accountType = isAdmin ? 'admin account' : 'account';
-      showToast(`${accountType} created! Redirecting…`, 'success');
+      showToast('Account created! Redirecting…', 'success');
       setTimeout(() => { window.location.href = 'index.html'; }, 800);
     } else {
       const err = await response.json().catch(() => ({}));
@@ -864,11 +880,39 @@ function escapeHtml(str) {
    PAGE: CREATE / EDIT PLACE
    ============================================================ */
 
-function parseAmenitiesInput(value) {
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
+/* ── Amenity checklist helpers ─────────────────────────────────────────── */
+
+async function loadAmenityChecklist(selectedIds = []) {
+  const container = document.getElementById('amenities-checklist');
+  if (!container) return;
+
+  try {
+    const res = await fetch(apiV1('/amenities/'));
+    if (!res.ok) throw new Error('Failed to load amenities');
+    const amenities = await res.json();
+
+    if (!amenities.length) {
+      container.innerHTML = '<span class="amenities-loading">No amenities available.</span>';
+      return;
+    }
+
+    const selectedSet = new Set(selectedIds);
+    container.innerHTML = amenities.map((a) => `
+      <label class="amenity-checkbox">
+        <input type="checkbox" name="amenity" value="${escapeHtml(a.id)}"
+          ${selectedSet.has(a.id) ? 'checked' : ''} />
+        ${escapeHtml(a.name)}
+      </label>
+    `).join('');
+  } catch {
+    container.innerHTML = '<span class="amenities-loading">Could not load amenities.</span>';
+  }
+}
+
+function getCheckedAmenityIds() {
+  return Array.from(
+    document.querySelectorAll('#amenities-checklist input[name="amenity"]:checked')
+  ).map((cb) => cb.value);
 }
 
 async function fetchPlaceForEditing(placeId, token) {
@@ -888,15 +932,7 @@ function fillPlaceForm(place) {
   document.getElementById('place-price').value = place.price || '';
   document.getElementById('place-latitude').value = place.latitude ?? '';
   document.getElementById('place-longitude').value = place.longitude ?? '';
-  
-  // Amenities can come as either amenity_ids array or as amenities object array
-  let amenityIds = [];
-  if (place.amenity_ids && Array.isArray(place.amenity_ids)) {
-    amenityIds = place.amenity_ids;
-  } else if (place.amenities && Array.isArray(place.amenities)) {
-    amenityIds = place.amenities.map(a => a.id || a);
-  }
-  document.getElementById('place-amenities').value = amenityIds.join(', ');
+  // Amenity checkboxes are pre-checked inside loadAmenityChecklist()
 }
 
 function collectPlaceFormData(includeOwnerId = true) {
@@ -907,7 +943,7 @@ function collectPlaceFormData(includeOwnerId = true) {
     price: Number(document.getElementById('place-price').value),
     latitude: Number(document.getElementById('place-latitude').value),
     longitude: Number(document.getElementById('place-longitude').value),
-    amenity_ids: parseAmenitiesInput(document.getElementById('place-amenities').value)
+    amenity_ids: getCheckedAmenityIds(),
   };
 
   if (includeOwnerId) {
@@ -919,14 +955,17 @@ function collectPlaceFormData(includeOwnerId = true) {
 
 function validatePlacePayload(payload, options = {}) {
   const requireOwnerId = options.requireOwnerId !== false;
-  if (!payload.title || !payload.description) {
-    return 'Name and description are required.';
+  if (!payload.title) {
+    return 'Place name is required.';
   }
   if (!payload.price || Number.isNaN(payload.price) || payload.price <= 0) {
     return 'Price must be greater than zero.';
   }
-  if (Number.isNaN(payload.latitude) || Number.isNaN(payload.longitude)) {
-    return 'Latitude and longitude are required.';
+  if (Number.isNaN(payload.latitude) || payload.latitude === '' || payload.latitude === null) {
+    return 'Latitude is required.';
+  }
+  if (Number.isNaN(payload.longitude) || payload.longitude === '' || payload.longitude === null) {
+    return 'Longitude is required.';
   }
   if (requireOwnerId && !payload.owner_id) {
     return 'You must be logged in to create a place.';
@@ -934,153 +973,73 @@ function validatePlacePayload(payload, options = {}) {
   return '';
 }
 
-async function initCreateEditPlacePage() {
+/* Shared form logic used by both create_place.html and edit_place.html */
+async function initPlaceForm(placeId) {
   const form = document.getElementById('place-form');
-  if (!form) {
-    console.error('Place form element not found!');
-    return;
-  }
+  if (!form) return;
 
-  // Check direct URL parameters
-  console.log('=== INIT CREATE/EDIT PAGE ===');
-  console.log('Full URL:', window.location.href);
-  console.log('Pathname:', window.location.pathname);
-  console.log('Search (query string):', window.location.search);
-  
-  // Ensure we have authentication before proceeding
   const token = checkAuth();
-  if (!token) {
-    console.error('No token found, checkAuth should have redirected but did not');
-    return;
-  }
-  
-  console.log('Token found, proceeding with page initialization');
-  
-  // Get the authenticated user - this is crucial for place creation
+  if (!token) return;
+
+  // Ensure we have the authenticated user's profile
   let authenticatedUser = getCurrentUser();
   if (!authenticatedUser || !authenticatedUser.id) {
-    console.log('Fetching authenticated user from API...');
     try {
       authenticatedUser = await fetchCurrentUser(token);
-      console.log('Fetched authenticatedUser:', authenticatedUser);
       saveCurrentUser(authenticatedUser);
     } catch (error) {
-      console.error('Failed to fetch authenticated user:', error);
       showToast('Please login again to continue.', 'error');
       clearAuthState();
       setTimeout(() => { window.location.href = 'login.html'; }, 800);
       return;
     }
-  } else {
-    console.log('authenticatedUser already in localStorage:', authenticatedUser);
   }
-  
-  // Store the authenticated user ID on the form for later use
-  form.dataset.authenticatedUserId = authenticatedUser.id;
-  console.log('Stored authenticatedUserId on form:', authenticatedUser.id);
-  
-  // Try multiple approaches to extract the place ID
-  let placeId = '';
-  
-  // Approach 1: Direct parsing of window.location.search
-  if (window.location.search) {
-    const exactMatch = window.location.search.match(/[?&]id=([^&]+)/);
-    if (exactMatch) {
-      placeId = decodeURIComponent(exactMatch[1]);
-      console.log('Found id via regex from search string:', placeId);
-    }
-  }
-  
-  // Approach 2: URLSearchParams (more robust)
-  if (!placeId && window.location.search) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const idFromUrl = urlParams.get('id');
-    if (idFromUrl) {
-      placeId = idFromUrl;
-      console.log('Found id via URLSearchParams:', placeId);
-    }
-  }
-  
-  // Approach 3: Fallback to getQueryParam
-  if (!placeId) {
-    const fallback = getQueryParam('id') || getQueryParam('place_id');
-    if (fallback) {
-      placeId = fallback;
-      console.log('Found id via getQueryParam:', placeId);
-    }
-  }
-  
-  // Trim and validate
-  if (placeId) {
-    placeId = placeId.trim();
-  }
-  
-  if (placeId === 'undefined' || placeId === 'null' || placeId === '') {
-    placeId = '';
-  }
-    
-  // Debug logging
-  console.log('Final extracted placeId:', placeId);
-  console.log('Is edit mode?', Boolean(placeId));
-  
-  const heading = document.getElementById('place-form-title');
-  const breadcrumb = document.getElementById('place-form-breadcrumb');
-  const submitBtn = document.getElementById('place-submit-btn');
 
-  if (placeId) {
-    console.log('=== EDIT MODE ===', 'Loading place:', placeId);
-    if (heading) heading.textContent = 'Edit place';
-    if (breadcrumb) breadcrumb.textContent = 'Edit place';
-    if (submitBtn) submitBtn.textContent = 'Save changes';
+  form.dataset.authenticatedUserId = authenticatedUser.id;
+
+  const submitBtn = document.getElementById('place-submit-btn');
+  const isEdit = Boolean(placeId);
+
+  if (isEdit) {
     try {
       const place = await fetchPlaceForEditing(placeId, token);
-      console.log('Fetched place data:', place);
+      const existingIds = Array.isArray(place.amenity_ids)
+        ? place.amenity_ids
+        : (place.amenities || []).map((a) => a.id || a).filter(Boolean);
+      await loadAmenityChecklist(existingIds);
       fillPlaceForm(place);
     } catch (error) {
-      console.error('Error loading place for editing:', error);
       showToast('Could not load place details.', 'error');
+      await loadAmenityChecklist();
     }
   } else {
-    console.log('=== CREATE MODE === No placeId provided');
+    await loadAmenityChecklist();
   }
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    
-    const isEdit = Boolean(placeId);
-    console.log('Form submitted. Is edit mode?', isEdit);
-    
-    // Collect form data
-    const payload = collectPlaceFormData(false); // Don't include owner_id from here
-    
-    // For CREATE mode, ALWAYS set owner_id from authenticated user
+
+    const payload = collectPlaceFormData(false);
+
     if (!isEdit) {
       const authenticatedUserId = form.dataset.authenticatedUserId;
       if (!authenticatedUserId) {
-        console.error('No authenticated user ID available!');
         showToast('Authentication error: Please login again.', 'error');
         return;
       }
       payload.owner_id = authenticatedUserId;
-      console.log('CREATE mode: Set owner_id to', authenticatedUserId);
     }
-    
-    // Validate the payload
+
     const validationError = validatePlacePayload(payload, { requireOwnerId: !isEdit });
     if (validationError) {
-      console.log('Validation failed:', validationError);
       showToast(validationError, 'error');
       return;
     }
-    
-    console.log('Validation passed. Payload:', payload);
 
     setButtonLoading(submitBtn, true);
     try {
-      const endpoint = placeId ? apiV1(`/places/${placeId}`) : apiV1('/places/');
-      const method = placeId ? 'PUT' : 'POST';
-      
-      console.log(`Sending ${method} request to ${endpoint}`);
+      const endpoint = isEdit ? apiV1(`/places/${placeId}`) : apiV1('/places/');
+      const method   = isEdit ? 'PUT' : 'POST';
 
       const response = await fetch(endpoint, {
         method,
@@ -1091,27 +1050,47 @@ async function initCreateEditPlacePage() {
         body: JSON.stringify(payload)
       });
 
-      console.log(`Response status: ${response.status}`);
-
       if (response.ok) {
         const place = await response.json();
-        showToast(placeId ? 'Place updated successfully.' : 'Place created successfully.', 'success');
-        console.log('Success! Redirecting to place details...');
+        showToast(isEdit ? 'Place updated successfully.' : 'Place created successfully.', 'success');
         setTimeout(() => {
           window.location.href = `place.html?id=${encodeURIComponent(place.id)}`;
         }, 900);
       } else {
         const err = await response.json().catch(() => ({}));
-        console.error('API returned error:', err);
         showToast(err.message || 'Failed to save place.', 'error');
       }
     } catch (error) {
-      console.error('Network or submission error:', error);
       showToast('Cannot reach the server.', 'error');
     } finally {
       setButtonLoading(submitBtn, false);
     }
   });
+}
+
+function initCreatePlacePage() {
+  if (!document.getElementById('place-form')) return;
+  initPlaceForm(null);
+}
+
+function initEditPlacePage() {
+  if (!document.getElementById('place-form')) return;
+  const raw = getQueryParam('id') || getQueryParam('place_id');
+  const placeId = (raw && raw !== 'undefined' && raw !== 'null') ? raw.trim() : '';
+  if (!placeId) {
+    showToast('No place ID found in URL.', 'error');
+    setTimeout(() => { window.location.href = 'admin.html'; }, 1200);
+    return;
+  }
+  initPlaceForm(placeId);
+}
+
+/* Keep old name as alias so existing bookmarks to create_edit_place.html still work */
+function initCreateEditPlacePage() {
+  if (!document.getElementById('place-form')) return;
+  const raw = getQueryParam('id') || getQueryParam('place_id');
+  const placeId = (raw && raw !== 'undefined' && raw !== 'null') ? raw.trim() : '';
+  initPlaceForm(placeId || null);
 }
 
 /* ============================================================
@@ -1124,49 +1103,227 @@ function renderAdminOverview(data) {
   document.getElementById('admin-places-count').textContent = stats.places || 0;
   document.getElementById('admin-reviews-count').textContent = stats.reviews || 0;
 
-  const usersList = document.getElementById('admin-users-list');
-  const placesList = document.getElementById('admin-places-list');
+  const currentUser = getCurrentUser();
+  const usersList   = document.getElementById('admin-users-list');
+  const placesList  = document.getElementById('admin-places-list');
   const reviewsList = document.getElementById('admin-reviews-list');
 
-  usersList.innerHTML = (data.users || []).map((user) => `
-    <li>${escapeHtml(`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.name || 'User')} <span>${escapeHtml(user.email || '')}</span>${user.is_admin ? ' <strong>(admin)</strong>' : ''}</li>
-  `).join('');
+  // ── Users ──────────────────────────────────────────────────────────────────
+  usersList.innerHTML = (data.users || []).map((user) => {
+    const fullName = escapeHtml(
+      `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User'
+    );
+    const isSelf    = currentUser && currentUser.id === user.id;
+    const roleLabel = user.is_admin ? ' <strong>(admin)</strong>' : '';
+    const roleBtn   = isSelf ? '' :
+      `<button class="admin-role-btn" data-user-id="${escapeHtml(user.id)}" data-is-admin="${user.is_admin}">
+        ${user.is_admin ? 'Revoke admin' : 'Make admin'}
+      </button>`;
+    const editBtn   =
+      `<button class="admin-edit-btn" data-user-id="${escapeHtml(user.id)}"
+         data-first-name="${escapeHtml(user.first_name || '')}"
+         data-last-name="${escapeHtml(user.last_name || '')}"
+         data-email="${escapeHtml(user.email || '')}">Edit</button>`;
+    const deleteBtn = isSelf ? '' :
+      `<button class="admin-delete-btn" data-user-id="${escapeHtml(user.id)}"
+         data-user-name="${escapeHtml(fullName)}">Delete</button>`;
 
-  placesList.innerHTML = (data.places || []).map((place) => {
-    // Ensure we have a valid place ID from various possible field names
-    const placeId = place.id || place.place_id || place.title || '';
-    
-    // Debug logging
-    console.log('Admin rendering place:', { name: place.name, id: place.id, place_id: place.place_id, extractedId: placeId });
-    
-    // Only create an edit link if we have a non-empty, valid ID
-    if (!placeId || placeId === '' || placeId === 'undefined' || placeId === 'null') {
-      // No valid ID
-      return `
-        <li>
-          <span>${escapeHtml(place.name)} — €${place.price}</span>
-          <span class="muted">Edit unavailable</span>
-        </li>
-      `;
-    }
-    
-    // Create a properly formatted edit URL
-    const editUrl = `/create_edit_place.html?id=${encodeURIComponent(placeId)}`;
-    console.log('Generated edit URL:', editUrl);
-
-    return `
-    <li>
-      <span>${escapeHtml(place.name)} — €${place.price}</span>
-      <a href="${editUrl}" data-place-id="${escapeHtml(placeId)}">Edit</a>
-    </li>
-  `;
+    return `<li>
+      <span class="admin-item-label">${fullName} <em>${escapeHtml(user.email || '')}</em>${roleLabel}</span>
+      <div class="admin-actions">${editBtn}${roleBtn}${deleteBtn}</div>
+    </li>`;
   }).join('');
 
-  reviewsList.innerHTML = (data.reviews || []).map((review) => `
-    <li>
-      <span>${escapeHtml(review.user || 'Anonymous')} on place ${escapeHtml(review.place_id)}: ${escapeHtml(review.text || '')}</span>
-    </li>
-  `).join('');
+  // Wire up user action buttons
+  usersList.querySelectorAll('.admin-role-btn').forEach((btn) => {
+    btn.addEventListener('click', () => adminToggleRole(btn));
+  });
+  usersList.querySelectorAll('.admin-edit-btn').forEach((btn) => {
+    btn.addEventListener('click', () => adminEditUser(btn));
+  });
+  usersList.querySelectorAll('[data-user-id].admin-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', () => adminDeleteUser(btn));
+  });
+
+  // ── Places ─────────────────────────────────────────────────────────────────
+  placesList.innerHTML = (data.places || []).map((place) => {
+    const placeId = place.id || '';
+    if (!placeId) {
+      return `<li><span>${escapeHtml(place.name)} — €${place.price}</span></li>`;
+    }
+    const editUrl = `edit_place.html?id=${encodeURIComponent(placeId)}`;
+    return `<li>
+      <span>${escapeHtml(place.name)} — €${place.price}</span>
+      <div class="admin-actions">
+        <a href="${editUrl}">Modify</a>
+        <button class="admin-delete-btn" data-place-id="${escapeHtml(placeId)}" data-place-name="${escapeHtml(place.name)}">Delete</button>
+      </div>
+    </li>`;
+  }).join('');
+
+  // Wire up place delete buttons
+  placesList.querySelectorAll('.admin-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', () => adminDeletePlace(btn));
+  });
+
+  // ── Reviews ────────────────────────────────────────────────────────────────
+  // Build a place-id → title lookup so reviews show place names, not UUIDs
+  const placeMap = {};
+  (data.places || []).forEach((p) => { if (p.id) placeMap[p.id] = p.name || p.title || p.id; });
+
+  reviewsList.innerHTML = (data.reviews || []).map((review) => {
+    const placeName = placeMap[review.place_id] || review.place_id || 'Unknown place';
+    return `<li>
+      <span>${escapeHtml(review.user || 'Anonymous')} on <em>${escapeHtml(placeName)}</em>: ${escapeHtml(review.text || '')}</span>
+    </li>`;
+  }).join('');
+}
+
+async function adminToggleRole(btn) {
+  const token    = getToken();
+  const userId   = btn.dataset.userId;
+  const makeAdmin = btn.dataset.isAdmin === 'true' ? false : true;
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    const res = await fetch(apiV1(`/admin/users/${userId}/role`), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ is_admin: makeAdmin })
+    });
+
+    if (res.ok) {
+      showToast(makeAdmin ? 'Admin role granted.' : 'Admin role revoked.', 'success');
+      // Refresh the admin panel to reflect the change
+      initAdminPage();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.message || 'Failed to update role.', 'error');
+      btn.disabled = false;
+      btn.textContent = makeAdmin ? 'Make admin' : 'Revoke admin';
+    }
+  } catch {
+    showToast('Cannot reach the server.', 'error');
+    btn.disabled = false;
+    btn.textContent = makeAdmin ? 'Make admin' : 'Revoke admin';
+  }
+}
+
+async function adminDeletePlace(btn) {
+  const token     = getToken();
+  const placeId   = btn.dataset.placeId;
+  const placeName = btn.dataset.placeName || 'this place';
+
+  if (!confirm(`Delete "${placeName}"? This cannot be undone.`)) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+
+  try {
+    const res = await fetch(apiV1(`/places/${placeId}`), {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      showToast('Place deleted.', 'success');
+      initAdminPage();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.message || 'Failed to delete place.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Delete';
+    }
+  } catch {
+    showToast('Cannot reach the server.', 'error');
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+  }
+}
+
+async function adminEditUser(btn) {
+  const userId    = btn.dataset.userId;
+  const firstName = btn.dataset.firstName || '';
+  const lastName  = btn.dataset.lastName  || '';
+  const email     = btn.dataset.email     || '';
+  const token     = getToken();
+
+  // Build a simple inline modal prompt
+  const newFirst = window.prompt('First name:', firstName);
+  if (newFirst === null) return; // cancelled
+  const newLast  = window.prompt('Last name:',  lastName);
+  if (newLast  === null) return;
+  const newEmail = window.prompt('Email:',      email);
+  if (newEmail === null) return;
+
+  const payload = {};
+  if (newFirst.trim() !== firstName) payload.first_name = newFirst.trim();
+  if (newLast.trim()  !== lastName)  payload.last_name  = newLast.trim();
+  if (newEmail.trim() !== email)     payload.email      = newEmail.trim();
+
+  if (!Object.keys(payload).length) {
+    showToast('No changes made.', '');
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch(apiV1(`/admin/users/${userId}`), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      showToast('User updated.', 'success');
+      initAdminPage();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.message || 'Failed to update user.', 'error');
+      btn.disabled = false;
+    }
+  } catch {
+    showToast('Cannot reach the server.', 'error');
+    btn.disabled = false;
+  }
+}
+
+async function adminDeleteUser(btn) {
+  const userId   = btn.dataset.userId;
+  const userName = btn.dataset.userName || 'this user';
+  const token    = getToken();
+
+  if (!confirm(`Delete user "${userName}"? This cannot be undone.`)) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+
+  try {
+    const res = await fetch(apiV1(`/admin/users/${userId}`), {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      showToast('User deleted.', 'success');
+      initAdminPage();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.message || 'Failed to delete user.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Delete';
+    }
+  } catch {
+    showToast('Cannot reach the server.', 'error');
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+  }
 }
 
 async function initAdminPage() {
@@ -1175,13 +1332,15 @@ async function initAdminPage() {
 
   const token = checkAuth();
   let user = getCurrentUser();
-  if (!user) {
+  if (!user || !user.id) {
     try {
       user = await fetchCurrentUser(token);
       saveCurrentUser(user);
     } catch (error) {
-      console.error('Failed to fetch current user:', error);
-      panel.innerHTML = '<p class="empty-state">Please login again.</p>';
+      // Token expired or invalid
+      clearAuthState();
+      showToast('Your session has expired. Please login again.', 'error');
+      setTimeout(() => { window.location.href = 'login.html'; }, 1200);
       return;
     }
   }
@@ -1200,19 +1359,17 @@ async function initAdminPage() {
       })
     ]);
 
-    if (usersRes.status === 403 || placesRes.status === 403) {
-      panel.innerHTML = '<p class="empty-state">Admin access required.</p>';
+    // Token expired or revoked — kick to login
+    if (usersRes.status === 401 || placesRes.status === 401) {
+      clearAuthState();
+      showToast('Your session has expired. Please login again.', 'error');
+      setTimeout(() => { window.location.href = 'login.html'; }, 1200);
       return;
     }
 
-    if (!usersRes.ok) {
-      const errorText = await usersRes.text();
-      console.error(`Admin users endpoint failed with ${usersRes.status}:`, errorText);
-    }
-
-    if (!placesRes.ok) {
-      const errorText = await placesRes.text();
-      console.error(`Places endpoint failed with ${placesRes.status}:`, errorText);
+    if (usersRes.status === 403 || placesRes.status === 403) {
+      panel.innerHTML = '<p class="empty-state">Admin access required.</p>';
+      return;
     }
 
     if (!usersRes.ok || !placesRes.ok) {
@@ -1234,7 +1391,6 @@ async function initAdminPage() {
       reviews
     });
   } catch (error) {
-    console.error('Admin page error:', error);
     panel.innerHTML = '<p class="empty-state">Could not load admin data.</p>';
   }
 }
@@ -1247,38 +1403,14 @@ document.addEventListener('DOMContentLoaded', () => {
   syncAuthUI();
 
   const path = window.location.pathname;
-  console.log('=== ROUTER ===');
-  console.log('Detected pathname:', path);
 
-  if (path.endsWith('signup.html')) {
-    console.log('-> Detected SIGNUP page');
-    initSignupPage();
-  }
-  else if (path.endsWith('login.html')) {
-    console.log('-> Detected LOGIN page');
-    initLoginPage();
-  }
-  else if (path.endsWith('index.html') || path.endsWith('/') || path === '') {
-    console.log('-> Detected INDEX page');
-    initIndexPage();
-  }
-  else if (path.endsWith('place.html')) {
-    console.log('-> Detected PLACE DETAILS page');
-    initPlacePage();
-  }
-  else if (path.endsWith('add_review.html')) {
-    console.log('-> Detected ADD REVIEW page');
-    initAddReviewPage();
-  }
-  else if (path.endsWith('create_edit_place.html')) {
-    console.log('-> Detected CREATE/EDIT PLACE page');
-    initCreateEditPlacePage();
-  }
-  else if (path.endsWith('admin.html')) {
-    console.log('-> Detected ADMIN page');
-    initAdminPage();
-  }
-  else {
-    console.log('-> No matching page detected for path:', path);
-  }
+  if (path.endsWith('signup.html'))              initSignupPage();
+  else if (path.endsWith('login.html'))           initLoginPage();
+  else if (path.endsWith('index.html') || path.endsWith('/') || path === '') initIndexPage();
+  else if (path.endsWith('place.html'))           initPlacePage();
+  else if (path.endsWith('add_review.html'))      initAddReviewPage();
+  else if (path.endsWith('create_place.html'))    initCreatePlacePage();
+  else if (path.endsWith('edit_place.html'))      initEditPlacePage();
+  else if (path.endsWith('create_edit_place.html')) initCreateEditPlacePage();
+  else if (path.endsWith('admin.html'))           initAdminPage();
 });

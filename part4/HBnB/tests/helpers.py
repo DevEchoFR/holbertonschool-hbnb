@@ -7,12 +7,12 @@ import os
 
 # Make sure both 'part3/' AND 'part3/tests/' are importable no matter
 # which directory the user calls Python from.
-_PART3 = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if _PART3 not in sys.path:
-    sys.path.insert(0, _PART3)
+_PART4 = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _PART4 not in sys.path:
+    sys.path.insert(0, _PART4)
 
-from part3.HBnB.config import TestingConfig
-from part3.HBnB.app import create_app, db
+from config import TestingConfig
+from app import create_app, db
 
 # One app instance shared across all test files
 app = create_app(TestingConfig)
@@ -38,6 +38,26 @@ def check(description, condition):
     else:
         print(f"  FAIL  {description}")
         failed += 1
+
+
+# ---- admin helper -----------------------------------------------------------
+
+def create_admin_user(first_name, last_name, email, password):
+    """Create a user with is_admin=True directly via the facade (test use only)."""
+    with app.app_context():
+        from app.services.facade import facade
+        try:
+            user = facade.create_user({
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": email,
+                "password": password,
+                "is_admin": True,
+            })
+        except ValueError:
+            # Already exists — look it up
+            user = facade.get_user_by_email(email)
+        return user.id
 
 
 # ---- HTTP helpers -----------------------------------------------------------

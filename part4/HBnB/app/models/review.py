@@ -17,6 +17,7 @@ class Review(BaseModel):
     place = db.relationship("Place", back_populates="reviews")
 
     def __init__(self, text, rating, user_id, place_id):
+        super().__init__()
         self._validate(text, rating)
         self.text = text
         self.rating = int(rating)

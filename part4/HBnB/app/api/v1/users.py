@@ -1,5 +1,6 @@
 """User endpoints – /api/v1/users/"""
 from flask_restx import Namespace, Resource, fields
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.services.facade import facade
 
 ns = Namespace("users", description="User operations")
@@ -12,7 +13,6 @@ user_input_model = ns.model("UserInput", {
     "last_name":  fields.String(required=True),
     "email":      fields.String(required=True),
     "password":   fields.String(required=True),
-    "is_admin":   fields.Boolean(required=False, default=False),
 })
 
 user_update_model = ns.model("UserUpdate", {
@@ -49,6 +49,8 @@ class UserList(Resource):
     def post(self):
         """Create a new user."""
         data = ns.payload
+        # Public registration can never grant admin privileges.
+        data.pop("is_admin", None)
         try:
             user = facade.create_user(data)
         except (ValueError, KeyError) as e:
@@ -74,10 +76,19 @@ class UserDetail(Resource):
     @ns.expect(user_update_model, validate=True)
     @ns.response(200, "Updated")
     @ns.response(400, "Bad Request")
+    @ns.response(401, "Unauthorized")
+    @ns.response(403, "Forbidden")
     @ns.response(404, "Not Found")
+    @jwt_required()
     def put(self, user_id):
-        """Update a user."""
+        """Update a user. Users may only update their own profile; admins may update any."""
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        if not claims.get("is_admin", False) and current_user_id != user_id:
+            ns.abort(403, "You can only update your own profile")
         data = ns.payload
+        # Prevent privilege escalation via this endpoint.
+        data.pop("is_admin", None)
         try:
             user = facade.update_user(user_id, data)
         except ValueError as e:

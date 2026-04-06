@@ -27,6 +27,7 @@ class User(BaseModel):
     )
 
     def __init__(self, first_name, last_name, email, password, is_admin=False):
+        super().__init__()
         self._validate(first_name, last_name, email, password)
         self.first_name = first_name
         self.last_name = last_name
@@ -85,8 +86,8 @@ class User(BaseModel):
                     not value or not str(value).strip()):
                 raise ValueError(f"{key} is required")
             setattr(self, key, value)
-        from datetime import datetime
-        self.updated_at = datetime.utcnow()
+        from app.models.base_model import _now
+        self.updated_at = _now()
 
     # --- serialisation ----------------------------------------------------
 

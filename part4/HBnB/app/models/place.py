@@ -36,6 +36,7 @@ class Place(BaseModel):
 
     def __init__(self, title, description, price,
                  latitude, longitude, owner_id, amenity_ids=None):
+        super().__init__()
         self._validate(title, price, latitude, longitude)
         self.title = title
         self.description = description

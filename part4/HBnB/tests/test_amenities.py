@@ -2,21 +2,17 @@
 Tests for Amenity endpoints.
 Run:  python tests/test_amenities.py
 """
-from part3.HBnB.tests.helpers import check, post, post_auth, get, put_auth, summary
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from tests.helpers import check, post, post_auth, get, put_auth, summary, create_admin_user
 
 print("\n--- Amenity Tests ---")
 
 # --- setup admin auth -------------------------------------------------------
-post("/api/v1/users/", {
-	"first_name": "Admin",
-	"last_name": "User",
-	"email": "admin_amenities@example.com",
-	"password": "adminpass",
-	"is_admin": True,
-})
+create_admin_user("Admin", "User", "admin_amenities@example.com", "adminpass")
 _, login = post("/api/v1/auth/login", {
-	"email": "admin_amenities@example.com",
-	"password": "adminpass",
+    "email": "admin_amenities@example.com",
+    "password": "adminpass",
 })
 ADMIN_TOKEN = login["access_token"]
 

@@ -8,8 +8,8 @@ ns = Namespace("reviews", description="Review operations")
 review_input_model = ns.model("ReviewInput", {
     "text":     fields.String(required=True),
     "rating":   fields.Integer(required=True),
-    "user_id":  fields.String(required=True),
     "place_id": fields.String(required=True),
+    "user_id":  fields.String(required=False, description="Ignored for non-admin users; identity is taken from the JWT"),
 })
 
 review_update_model = ns.model("ReviewUpdate", {

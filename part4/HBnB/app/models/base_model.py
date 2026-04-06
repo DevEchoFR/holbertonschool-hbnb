@@ -1,11 +1,15 @@
 """Base class that all SQLAlchemy models inherit from."""
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from app import db
 
 
 def _generate_uuid():
     return str(uuid.uuid4())
+
+
+def _now():
+    return datetime.now(timezone.utc)
 
 
 class BaseModel(db.Model):
@@ -14,12 +18,12 @@ class BaseModel(db.Model):
     __abstract__ = True
 
     id = db.Column(db.String(60), primary_key=True, default=_generate_uuid)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=_now)
     updated_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=_now,
+        onupdate=_now,
     )
 
     def update(self, data):
@@ -29,7 +33,7 @@ class BaseModel(db.Model):
             if key in protected:
                 continue
             setattr(self, key, value)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = _now()
 
     def to_dict(self):
         """Return a JSON-friendly dictionary representation."""

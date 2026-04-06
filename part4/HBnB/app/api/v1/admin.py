@@ -1,6 +1,6 @@
 """Admin endpoints – /api/v1/admin/"""
 from flask_restx import Namespace, Resource, fields
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.api.v1.auth import require_admin_claim
 from app.services.facade import facade
@@ -13,6 +13,12 @@ user_role_update_model = ns.model("UserRoleUpdate", {
     "is_admin": fields.Boolean(required=True, description="Grant or revoke admin role"),
 })
 
+user_edit_model = ns.model("AdminUserEdit", {
+    "first_name": fields.String,
+    "last_name":  fields.String,
+    "email":      fields.String,
+    "password":   fields.String,
+})
 
 user_output_model = ns.model("AdminUserOutput", {
     "id": fields.String,
@@ -37,6 +43,50 @@ class AdminUsers(Resource):
         """List all users (admin only)."""
         require_admin_claim(ns)
         return [u.to_dict() for u in facade.list_users()], 200
+
+
+@ns.route("/users/<string:user_id>")
+class AdminUserDetail(Resource):
+
+    @jwt_required()
+    @ns.expect(user_edit_model, validate=True)
+    @ns.response(200, "Updated")
+    @ns.response(400, "Bad Request")
+    @ns.response(401, "Unauthorized")
+    @ns.response(403, "Forbidden")
+    @ns.response(404, "Not Found")
+    @ns.marshal_with(user_output_model)
+    def put(self, user_id):
+        """Edit any user's details (admin only)."""
+        require_admin_claim(ns)
+        data = dict(ns.payload)
+        # Prevent privilege escalation via this endpoint.
+        data.pop("is_admin", None)
+        try:
+            user = facade.update_user(user_id, data)
+        except ValueError as e:
+            ns.abort(400, str(e))
+        if user is None:
+            ns.abort(404, "User not found")
+        return user.to_dict(), 200
+
+    @jwt_required()
+    @ns.response(200, "Deleted")
+    @ns.response(400, "Bad Request")
+    @ns.response(401, "Unauthorized")
+    @ns.response(403, "Forbidden")
+    @ns.response(404, "Not Found")
+    def delete(self, user_id):
+        """Delete a user (admin only). Admins cannot delete themselves."""
+        require_admin_claim(ns)
+        current_user_id = get_jwt_identity()
+        if current_user_id == user_id:
+            ns.abort(400, "Admins cannot delete their own account")
+        user = facade.get_user(user_id)
+        if user is None:
+            ns.abort(404, "User not found")
+        facade.delete_user(user_id)
+        return {"message": "User deleted"}, 200
 
 
 @ns.route("/users/<string:user_id>/role")

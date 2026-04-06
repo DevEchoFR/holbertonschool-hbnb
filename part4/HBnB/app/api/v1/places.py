@@ -14,7 +14,7 @@ place_input_model = ns.model("PlaceInput", {
     "price":       fields.Float(required=True),
     "latitude":    fields.Float(required=True),
     "longitude":   fields.Float(required=True),
-    "owner_id":    fields.String(required=True),
+    "owner_id":    fields.String(required=False),
     "amenity_ids": fields.List(fields.String, default=[]),
 })
 
@@ -82,18 +82,19 @@ class PlaceList(Resource):
         """Create a new place."""
         data = ns.payload
         current_user_id = get_jwt_identity()
-        claims = get_jwt()
 
-        if not claims.get("is_admin", False):
-            data["owner_id"] = current_user_id
-        elif not data.get("owner_id"):
-            # Fall back to current admin user when owner_id is omitted.
-            data["owner_id"] = current_user_id
+        # Always use the JWT identity as owner_id.  The JWT is signed and
+        # verified server-side, so it is the authoritative source of who the
+        # caller is.  Relying on the frontend's owner_id value is unsafe:
+        # localStorage can hold a stale UUID (e.g. after a DB reset) that no
+        # longer matches any row, causing a spurious "owner not found" 400.
+        data["owner_id"] = current_user_id
+
         try:
             place = facade.create_place(data)
         except (ValueError, KeyError) as e:
             ns.abort(400, str(e))
-        return facade._extend_place(place), 201
+        return facade.extend_place(place), 201
 
 
 # ------------------------------------------------------------------
@@ -127,7 +128,15 @@ class PlaceDetail(Resource):
         place_model = facade.get_place_model(place_id)
         if place_model is None:
             ns.abort(404, "Place not found")
-        if not claims.get("is_admin", False) and place_model.owner_id != current_user_id:
+
+        # Check admin via JWT claim first (fast path), then fall back to DB
+        # so a user promoted to admin mid-session doesn't need to re-login.
+        is_admin = claims.get("is_admin", False)
+        if not is_admin:
+            current_user = facade.get_user(current_user_id)
+            is_admin = bool(current_user and current_user.is_admin)
+
+        if not is_admin and place_model.owner_id != current_user_id:
             ns.abort(403, "You can only update your own places")
         try:
             place = facade.update_place(place_id, data)
@@ -136,6 +145,30 @@ class PlaceDetail(Resource):
         if place is None:
             ns.abort(404, "Place not found")
         return place, 200
+
+    @ns.response(200, "Deleted")
+    @ns.response(404, "Not Found")
+    @ns.response(401, "Unauthorized")
+    @ns.response(403, "Forbidden")
+    @jwt_required()
+    def delete(self, place_id):
+        """Delete a place. Only the owner or an admin may delete."""
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+
+        place_model = facade.get_place_model(place_id)
+        if place_model is None:
+            ns.abort(404, "Place not found")
+
+        is_admin = claims.get("is_admin", False)
+        if not is_admin:
+            current_user = facade.get_user(current_user_id)
+            is_admin = bool(current_user and current_user.is_admin)
+
+        if not is_admin and place_model.owner_id != current_user_id:
+            ns.abort(403, "You can only delete your own places")
+        facade.delete_place(place_id)
+        return {"message": "Place deleted"}, 200
 
 
 # ------------------------------------------------------------------
